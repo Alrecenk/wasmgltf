@@ -1,2 +1,2 @@
-# wasmwebgltemplate
-A template for building webgl and webassembly applications.
+# wasmgltf
+A library for loading GLTF models using C++ web-assembly.
