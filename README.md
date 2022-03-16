@@ -1,2 +1,2 @@
 # wasmgltf
-A library for loading GLTF models using C++ web-assembly.
+A library for loading GLB and VRM models using C++ web-assembly.
