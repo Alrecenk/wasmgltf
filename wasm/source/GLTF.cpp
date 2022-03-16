@@ -101,10 +101,27 @@ void GLTF::setModel(const byte* data, int data_length){
         if(first_chunk_type == 0x4E4F534A){
             printf("JSON chunk found!\n");
 
-            string s = string((char *) (data + 20), JSON_length);
+            string header = string((char *) (data + 20), JSON_length);
             //Variant::printJSON(s);
-            Variant obj = Variant::parseJSON(s);
-            obj.printFormatted();
+            Variant glb = Variant::parseJSON(header);
+            
+            printf("meshes:\n");
+            glb["meshes"].printFormatted();
+            printf("scene:\n");
+            glb["scenes"].printFormatted();
+            printf("Node:\n");
+            glb["nodes"][glb["scenes"][0]["nodes"][0]].printFormatted();
+            printf("Mesh:\n");
+            glb["meshes"][glb["nodes"][glb["scenes"][0]["nodes"][0]]["mesh"]].printFormatted();
+
+
+            //obj.printFormatted();
+            printf("\n");
+            
+
+            
+
+            
 
            
         }else{

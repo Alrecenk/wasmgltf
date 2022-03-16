@@ -143,6 +143,13 @@ class Variant {
     // Returns the array on a Variant holding a Variant array
     std::vector<Variant> getVariantArray() const;
 
+    Variant operator [](int i) const;
+
+    Variant operator [](std::string i) const;
+
+    Variant operator [](Variant i) const;
+
+
     // Convenience functions for extracting raw types
     int getInt() const;
 

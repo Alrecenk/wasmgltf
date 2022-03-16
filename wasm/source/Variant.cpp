@@ -552,6 +552,51 @@ vector<Variant> Variant::getVariantArray() const {
     return Variant::deserializeVariantArray(ptr);
 }
 
+Variant  Variant::operator [](int i) const{
+    // TODO caching?
+    if(type_ == VARIANT_ARRAY){
+        return getVariantArray()[i];
+    }else if(type_ == INT_OBJECT){
+        return getIntObject()[i];
+    }else if(type_ == BYTE_OBJECT){
+        return getByteObject()[(byte)i];
+    }else if(type_ == INT_ARRAY){
+        return Variant(getIntArray()[i]);
+    }else if(type_ == FLOAT_ARRAY){
+        return Variant(getFloatArray()[i]);
+    }else if(type_ == DOUBLE_ARRAY){
+        return Variant(getDoubleArray()[i]);
+    }else if(type_ == BYTE_ARRAY){
+        return Variant(getByteArray()[i]);
+    }else if(type_ == SHORT_ARRAY){
+        return Variant(getShortArray()[i]);
+    }else{
+        return Variant();
+    }
+}
+
+Variant  Variant::operator [](std::string i) const{
+    // TODO caching?
+    if(type_ == OBJECT){
+        return getObject()[i];
+    }else{
+        return Variant();
+    }
+}
+
+Variant Variant::operator [](Variant i) const{
+    printf("variant [] type %d\n", i.type_);
+    if(i.type_ == INT){
+        printf("variant [] type Int: %d \n", i.getInt());
+        return this->operator[](i.getInt());
+    }else if(i.type_ == STRING){
+        return this->operator[](i.getString());
+    }else{
+        return Variant();
+    }
+
+}
+
 // Convenience functions for extracting raw types
 int Variant::getInt() const {
     return *(int *) ptr;
@@ -923,6 +968,8 @@ void Variant::printJSON(const std::string& json){
             stop_comma_break = !found_nest ;
         }
 
+        
+
         if(!stop_comma_break){
             if(c == ',' || c == '{' || c == '['){
                 string blanks(indents*2, ' ');
@@ -941,12 +988,19 @@ void Variant::printJSON(const std::string& json){
         if(c == '{' || c == '['){
             indents++;
         }
-       
         if(c == ']' || c == '}'){
             stop_comma_break = false;
         }
     }
+
+    if(json[0] == '['){
+        printf("]\n");
+    }else if(json[0] == '{'){
+        printf("}\n");
+    }
+
 }
+
 
 // returns the hash of a variant
 int Variant::hash() {
