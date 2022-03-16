@@ -107,8 +107,6 @@ class GLTF{
         // Changes all vertices within radius of origin to the given color
         void paint(const glm::vec3 &center, const float &radius, const glm::vec3 &color);
 
-        static void printJSONstring(const std::string& json);
-
     private:
         // Performs the duplicate work for the various get vertex buffer functions
         Variant getFloatBuffer(std::vector<glm::vec3>& ptr);

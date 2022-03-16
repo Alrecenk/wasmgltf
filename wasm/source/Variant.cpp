@@ -1,13 +1,16 @@
 #include "Variant.h"
 
 using std::string;
+using std::map;
+using std::vector;
+
 
 Variant::Variant() {
     type_ = NULL_VARIANT;
     ptr = nullptr;
 }
 
-Variant::Variant(const std::map<string, Variant> &obj) {
+Variant::Variant(const map<string, Variant> &obj) {
     type_ = OBJECT;
     int total_size = Variant::getSize(obj);
     //printf("total size: %i\n", total_size);
@@ -15,7 +18,7 @@ Variant::Variant(const std::map<string, Variant> &obj) {
     byte *input_ptr = ptr;
     ((int *) ptr)[0] = obj.size();
     input_ptr += 4;
-    std::map<string, int *> linker;
+    map<string, int *> linker;
     // Write the list of keys and types
     for (auto const&[key, data]:obj) {
         int key_size = Variant::getSize(key);
@@ -42,7 +45,7 @@ Variant::Variant(const std::map<string, Variant> &obj) {
 }
 
 
-Variant::Variant(const std::map<int, Variant> &obj) {
+Variant::Variant(const map<int, Variant> &obj) {
     type_ = INT_OBJECT;
     int total_size = Variant::getSize(obj);
     //printf("total size: %i\n", total_size);
@@ -50,7 +53,7 @@ Variant::Variant(const std::map<int, Variant> &obj) {
     byte *input_ptr = ptr;
     ((int *) ptr)[0] = obj.size();
     input_ptr += 4;
-    std::map<int, int *> linker;
+    map<int, int *> linker;
     // Write the list of keys and types
     for (auto const&[key, data]:obj) {
         Variant keyvar(key);
@@ -77,7 +80,7 @@ Variant::Variant(const std::map<int, Variant> &obj) {
 }
 
 
-Variant::Variant(const std::map<byte, Variant> &obj) {
+Variant::Variant(const map<byte, Variant> &obj) {
     type_ = BYTE_OBJECT;
     int total_size = Variant::getSize(obj);
     //printf("total size: %i\n", total_size);
@@ -85,7 +88,7 @@ Variant::Variant(const std::map<byte, Variant> &obj) {
     byte *input_ptr = ptr;
     ((int *) ptr)[0] = obj.size();
     input_ptr += 4;
-    std::map<byte, int *> linker;
+    map<byte, int *> linker;
     // Write the list of keys and types
     for (auto const&[key, data]:obj) {
         Variant keyvar(key);
@@ -194,14 +197,14 @@ Variant::Variant(const double *data, int array_length) {
     memcpy(ptr + 4, data, 8 * array_length);
 }
 
-Variant::Variant(const std::vector<Variant> &array) {
+Variant::Variant(const vector<Variant> &array) {
     type_ = VARIANT_ARRAY;
     int total_size = Variant::getSize(array);
     ptr = (byte *) malloc(total_size);
     byte *input_ptr = ptr;
     ((int *) ptr)[0] = array.size();
     input_ptr += 4;
-    std::vector<byte *> linker(array.size());
+    vector<byte *> linker(array.size());
     //printf("total size: %i\n", total_size);
     // Write the list of types and allocate pointers
     for (int k = 0; k < array.size(); k++) {
@@ -381,7 +384,7 @@ int Variant::getSize(const Type type, const byte *input_ptr) {
 }
 
 // returns the size that would need to be allocated to serialize the given object (does not include type)
-int Variant::getSize(const std::map<string, Variant> &obj) {
+int Variant::getSize(const map<string, Variant> &obj) {
     int size = 4; // num_keys
     for (auto const&[key, data]:obj) {
         size += getSize(key);
@@ -392,7 +395,7 @@ int Variant::getSize(const std::map<string, Variant> &obj) {
 }
 
 // returns the size that would need to be allocated to serialize the given object (does not include type)
-int Variant::getSize(const std::map<int, Variant> &obj) {
+int Variant::getSize(const map<int, Variant> &obj) {
     int size = 4; // num_keys
     for (auto const&[key, data]:obj) {
         size += 4; // int key
@@ -403,7 +406,7 @@ int Variant::getSize(const std::map<int, Variant> &obj) {
 }
 
 // returns the size that would need to be allocated to serialize the given object (does not include type)
-int Variant::getSize(const std::map<byte, Variant> &obj) {
+int Variant::getSize(const map<byte, Variant> &obj) {
     int size = 4; // num_keys
     for (auto const&[key, data]:obj) {
         size += 1; // byte key
@@ -419,7 +422,7 @@ int Variant::getSize(const string &data) {
 }
 
 // returns the size that would need to be allocated to serialize the given variant array (does not include type)
-int Variant::getSize(const std::vector<Variant> &array) {
+int Variant::getSize(const vector<Variant> &array) {
     int size = 4; // length
     for (const auto & var : array) {
         size += 5; // type and pointer
@@ -441,9 +444,9 @@ string Variant::getString() const {
 
 // Given a pointer to a JS style object returns a map with Variants to the internal elements
 // Copies all data so use wisely
-std::map<string, Variant> Variant::deserializeObject(byte *input_ptr) {
+map<string, Variant> Variant::deserializeObject(byte *input_ptr) {
     byte *start_input_ptr = input_ptr;
-    std::map<string, Variant> obj;
+    map<string, Variant> obj;
     int num_keys = *((int *) input_ptr);
     input_ptr = input_ptr + 4;
     for (int k = 0; k < num_keys; k++) {
@@ -462,9 +465,9 @@ std::map<string, Variant> Variant::deserializeObject(byte *input_ptr) {
 
 // Given a pointer to an object  with int keys returns a map with Variants to the internal elements
 // Copies all data so use wisely
-std::map<int, Variant> Variant::deserializeIntObject(byte *input_ptr) {
+map<int, Variant> Variant::deserializeIntObject(byte *input_ptr) {
     byte *start_input_ptr = input_ptr;
-    std::map<int, Variant> obj;
+    map<int, Variant> obj;
     int num_keys = *((int *) input_ptr);
     input_ptr = input_ptr + 4;
     for (int k = 0; k < num_keys; k++) {
@@ -482,9 +485,9 @@ std::map<int, Variant> Variant::deserializeIntObject(byte *input_ptr) {
 
 // Given a pointer to an object  with int keys returns a map with Variants to the internal elements
 // Copies all data so use wisely
-std::map<byte, Variant> Variant::deserializeByteObject(byte *input_ptr) {
+map<byte, Variant> Variant::deserializeByteObject(byte *input_ptr) {
     byte *start_input_ptr = input_ptr;
-    std::map<byte, Variant> obj;
+    map<byte, Variant> obj;
     int num_keys = *((int *) input_ptr);
     input_ptr = input_ptr + 4;
     for (int k = 0; k < num_keys; k++) {
@@ -501,7 +504,7 @@ std::map<byte, Variant> Variant::deserializeByteObject(byte *input_ptr) {
 }
 
 // Returns the object on a Variant holding an Object
-std::map<string, Variant> Variant::getObject() const {
+map<string, Variant> Variant::getObject() const {
     if (type_ != OBJECT) {
         printf("string object is not a string object! %i\n", type_);
     }
@@ -509,7 +512,7 @@ std::map<string, Variant> Variant::getObject() const {
 }
 
 // Returns the object on a Variant holding an Object
-std::map<int, Variant> Variant::getIntObject() const {
+map<int, Variant> Variant::getIntObject() const {
     if (type_ != INT_OBJECT) {
         printf("int object is not an int object! %i\n", type_);
     }
@@ -517,7 +520,7 @@ std::map<int, Variant> Variant::getIntObject() const {
 }
 
 // Returns the object on a Variant holding an Object
-std::map<byte, Variant> Variant::getByteObject() const {
+map<byte, Variant> Variant::getByteObject() const {
     if (type_ != BYTE_OBJECT) {
         printf("byte object is not a byte object! %i\n", type_);
     }
@@ -526,10 +529,10 @@ std::map<byte, Variant> Variant::getByteObject() const {
 
 // Given a pointer to a JS array returns a map with pointers to the internal elements
 // Copies all data so use wisely
-std::vector<Variant> Variant::deserializeVariantArray(byte *input_ptr) {
+vector<Variant> Variant::deserializeVariantArray(byte *input_ptr) {
     byte *start_input_ptr = input_ptr;
     int length = *((int *) input_ptr);
-    std::vector<Variant> array;
+    vector<Variant> array;
     input_ptr = input_ptr + 4;
     for (int k = 0; k < length; k++) {
         Type type = (Type) (*((byte *) input_ptr));
@@ -545,7 +548,7 @@ std::vector<Variant> Variant::deserializeVariantArray(byte *input_ptr) {
 }
 
 // Returns the array on a Variant holding a Variant array
-std::vector<Variant> Variant::getVariantArray() const {
+vector<Variant> Variant::getVariantArray() const {
     return Variant::deserializeVariantArray(ptr);
 }
 
@@ -634,7 +637,7 @@ string Variant::deserializeToString(char type, byte *input_ptr) {
     } else if (type == DOUBLE) {
         res = std::to_string(*((double *) input_ptr));
     } else if (type == OBJECT) {
-        std::map<string, Variant> obj = deserializeObject(input_ptr);
+        map<string, Variant> obj = deserializeObject(input_ptr);
         res = "{";
         byte first = true;
         for (auto const&[key, data]:obj) {
@@ -647,7 +650,7 @@ string Variant::deserializeToString(char type, byte *input_ptr) {
         }
         res += "}";
     } else if (type == INT_OBJECT) {
-        std::map<int, Variant> obj = deserializeIntObject(input_ptr);
+        map<int, Variant> obj = deserializeIntObject(input_ptr);
         res = "{";
         byte first = true;
         for (auto const&[key, data]:obj) {
@@ -660,7 +663,7 @@ string Variant::deserializeToString(char type, byte *input_ptr) {
         }
         res += "}";
     } else if (type == BYTE_OBJECT) {
-        std::map<byte, Variant> obj = deserializeByteObject(input_ptr);
+        map<byte, Variant> obj = deserializeByteObject(input_ptr);
         res = "{";
         byte first = true;
         for (auto const&[key, data]:obj) {
@@ -676,7 +679,7 @@ string Variant::deserializeToString(char type, byte *input_ptr) {
     } else if (type == STRING) {
         res = "\"" + deserializeString(input_ptr) + "\"";
     } else if (type == VARIANT_ARRAY) {
-        std::vector<Variant> array = deserializeVariantArray(input_ptr);
+        vector<Variant> array = deserializeVariantArray(input_ptr);
         res = "[";
         byte first = true;
         for (int k = 0; k < array.size(); k++) {
@@ -774,6 +777,175 @@ string Variant::toString() const {
 // Returns a deep copy of the given variant
 Variant Variant::clone() const {
     return Variant(this);
+}
+
+
+
+
+Variant Variant::parseJSON(const std::string& json){
+    int key_start = -1;
+
+    int state = 0 ; 
+    bool got_value = false;
+    
+    string key ;
+    
+    map<string,Variant> obj ;
+    int c = 0 ;
+    for( int c = 0; c < json.length(); c++){
+        if(state == 0){ // 0 = whitespace before key, 
+            if( json[c] == '"'){
+                state = 1 ;
+                key_start = c+1;
+            }
+        }else if(state == 1){//1 = in key, 
+            if( json[c] == '"'){
+                key = json.substr(key_start, c-key_start);
+                state = 2 ;
+            }
+        }else if(state == 2){//2 = whitespace befoe :,
+            if(json[c] == ':'){
+                state = 3 ;
+                got_value = false;
+            }
+        }else if(state == 3){ // 3 = approaching value
+            std::pair<Variant,int> val = Variant::parseJSONValue(json, c);
+            obj[key] = val.first.clone();
+            c = val.second;
+            state = 0 ;
+        }
+    }
+    return Variant(obj);
+}
+
+Variant Variant::parseJSONArray(const std::string& json){
+    vector<Variant> array ;
+    int value_start = 1;
+    while(value_start < json.length()-1){
+        if(json[value_start] == ',' || json[value_start] == ']' || json[value_start] == '}'){
+            value_start++;
+            continue;
+        }
+        std::pair<Variant,int> val = Variant::parseJSONValue(json, value_start);
+        array.push_back(val.first.clone());
+        value_start = val.second;
+    }
+    return Variant(array);
+}
+
+std::pair<Variant,int> Variant::parseJSONValue(const std::string& json, int value_start){
+    Variant var ;
+    int c ;
+    bool got_value =false ;
+    for(c = value_start; c < json.length();c++){
+        if(json[c] == '{'){
+            // Find the matching }
+            int obj_end = c + 1;
+            int open = 1 ;
+            while(open != 0){
+                obj_end++;
+                if(json[obj_end] == '{'){
+                    open++;
+                }else if(json[obj_end] == '}'){
+                    open--;
+                }
+            }
+            string value = json.substr(c,obj_end-c+1);
+            var = Variant::parseJSON(value);
+            c = obj_end;
+            got_value = true;
+        }else if(json[c] == '['){
+            // Find the matching ]
+            int array_end = c + 1;
+            int open = 1 ;
+            while(open != 0){
+                array_end++;
+                if(json[array_end] == '['){
+                    open++;
+                }else if(json[array_end] == ']'){
+                    open--;
+                }
+            }
+            string value = json.substr(c,array_end-c+1);
+            var = Variant::parseJSONArray(value);
+            c = array_end;
+            got_value = true;
+        }else if(json[c] == '"'){
+            int string_end = json.find('"', c+1);
+            string value = json.substr(c+1,string_end-c-1); // don't pick up " for strings
+            var = Variant(value) ;
+            c = string_end ;
+            got_value = true;
+        }else if(json[c] == ',' || json[c] == ']' || json[c] == '}'){ // got to , not inside nested structure
+            if(!got_value && value_start != c){ // must be a number if nothing else
+                string value = json.substr(value_start, c - value_start);
+                if(value == "true"){
+                    var = Variant(true);
+                }else if(value == "false"){
+                    var = Variant(false);
+                }else if(value.find('.') == string::npos){
+                    int i = std::stoi(value);
+                    var = Variant(i);
+                }else{
+                    double d =std::stod(value);
+                    var = Variant(d);
+                }
+            }
+            break;
+        }
+
+    }
+    return std::pair<Variant, int>(var, c);
+}
+
+void Variant::printFormatted() const{
+    std::string s = this->toString() ;
+    Variant::printJSON(s);
+}
+
+void Variant::printJSON(const std::string& json){
+    
+    int indents = 0;
+    int line_start = 0 ;
+    bool stop_comma_break = false;
+
+    for(int k=0;k < json.length(); k++){
+        char c = json[k];
+         if(c == '['){
+            bool found_nest = false;
+            int j=k+1;
+            while(json[j] != ']'){
+                if(json[j] == '[' || json[j] == '{'){
+                    found_nest = true;
+                }
+                j++;
+            }
+            stop_comma_break = !found_nest ;
+        }
+
+        if(!stop_comma_break){
+            if(c == ',' || c == '{' || c == '['){
+                string blanks(indents*2, ' ');
+                printf("%s%s \n",blanks.c_str(), json.substr(line_start,k-line_start+1).c_str());
+                line_start = k+1 ;
+            }
+            if(c == '}' || c == ']'){
+                string blanks(indents*2, ' ');
+                printf("%s%s \n",blanks.c_str(), json.substr(line_start,k-line_start).c_str());
+                line_start = k ;
+            }
+        }
+        if(c == '}' || c == ']'){
+            indents--;
+        }
+        if(c == '{' || c == '['){
+            indents++;
+        }
+       
+        if(c == ']' || c == '}'){
+            stop_comma_break = false;
+        }
+    }
 }
 
 // returns the hash of a variant

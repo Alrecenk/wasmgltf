@@ -102,7 +102,11 @@ void GLTF::setModel(const byte* data, int data_length){
             printf("JSON chunk found!\n");
 
             string s = string((char *) (data + 20), JSON_length);
-            GLTF::printJSONstring(s) ;
+            //Variant::printJSON(s);
+            Variant obj = Variant::parseJSON(s);
+            obj.printFormatted();
+
+           
         }else{
             printf("first chunk not json: %u\n", first_chunk_type);
         }
@@ -265,50 +269,6 @@ void GLTF::paint(const vec3 &center, const float &radius, const vec3 &color){
                 this->colors[k] = color;
                 this->color_changed = true;
             }
-        }
-    }
-}
-
-void GLTF::printJSONstring(const std::string& json){
-    int indents = 0;
-    int line_start = 0 ;
-    bool stop_comma_break = false;
-
-    for(int k=0;k < json.length(); k++){
-        char c = json[k];
-         if(c == '['){
-            bool found_nest = false;
-            int j=k+1;
-            while(json[j] != ']'){
-                if(json[j] == '[' || json[j] == '{'){
-                    found_nest = true;
-                }
-                j++;
-            }
-            stop_comma_break = !found_nest ;
-        }
-
-        if(!stop_comma_break){
-            if(c == ',' || c == '{' || c == '['){
-                string blanks(indents*2, ' ');
-                printf("%s%s \n",blanks.c_str(), json.substr(line_start,k-line_start+1).c_str());
-                line_start = k+1 ;
-            }
-            if(c == '}' || c == ']'){
-                string blanks(indents*2, ' ');
-                printf("%s%s \n",blanks.c_str(), json.substr(line_start,k-line_start).c_str());
-                line_start = k ;
-            }
-        }
-        if(c == '}' || c == ']'){
-            indents--;
-        }
-        if(c == '{' || c == '['){
-            indents++;
-        }
-       
-        if(c == ']' || c == '}'){
-            stop_comma_break = false;
         }
     }
 }

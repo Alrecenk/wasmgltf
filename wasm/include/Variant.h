@@ -178,6 +178,11 @@ This function detects what type came in and converts it to a 32 bit float */
     // Prints this variant to the console using printf (no newline)
     void print() const;
 
+    // Prints this variant to the console using printf with nice formatting for nested JSON
+    void printFormatted() const;
+
+    static void printJSON(const std::string& json);
+
     // Prints a serialized object to a string
     static std::string deserializeToString(char type, byte* input_ptr);
 
@@ -185,6 +190,13 @@ This function detects what type came in and converts it to a 32 bit float */
 
     // Returns a deep copy of the given variant
     Variant clone() const;
+
+    static Variant parseJSON(const std::string& json);
+
+    static Variant parseJSONArray(const std::string& json);
+
+    static std::pair<Variant,int> parseJSONValue(const std::string& json, int value_start);
+
 
     // returns the hash of a variant
     int hash();
