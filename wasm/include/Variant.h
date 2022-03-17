@@ -149,6 +149,9 @@ class Variant {
 
     Variant operator [](Variant i) const;
 
+    bool defined() const;
+    
+
 
     // Convenience functions for extracting raw types
     int getInt() const;

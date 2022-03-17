@@ -585,9 +585,7 @@ Variant  Variant::operator [](std::string i) const{
 }
 
 Variant Variant::operator [](Variant i) const{
-    printf("variant [] type %d\n", i.type_);
     if(i.type_ == INT){
-        printf("variant [] type Int: %d \n", i.getInt());
         return this->operator[](i.getInt());
     }else if(i.type_ == STRING){
         return this->operator[](i.getString());
@@ -595,6 +593,10 @@ Variant Variant::operator [](Variant i) const{
         return Variant();
     }
 
+}
+
+bool Variant::defined() const{
+    return type_ != 0;
 }
 
 // Convenience functions for extracting raw types

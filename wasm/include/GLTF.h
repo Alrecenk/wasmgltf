@@ -12,58 +12,21 @@ class GLTF{
 
     public:
 
-        struct Buffer{
-            uint file_offset;
-            uint length;
-        };
-
-        struct BufferView{
-            uint buffer;
-            uint length;
-            uint offset;
-            uint stride;
-        };
-
         struct Accessor{
-            uint view;
-            uint offset;
-            uint type;
+            std::string type;
             uint component_type;
+            Variant data;
         };
-
-        struct Primitive{
-            uint material;
-            uint mode;
-            uint position;
-            uint normal;
-            std::vector<uint> texcoord;
-            std::vector<uint> color;
-            std::vector<uint> joints;
-            std::vector<uint> weights;
-
-        };
-
-        struct Mesh{
-            std::vector<Primitive> primitives;
-            std::vector<uint> indices;
-            uint mode;
-        };
-
-        struct Node{
-            std::vector<uint> children;
-            std::vector<uint> meshes;
-        };
-
-        struct Scene{
-            std::vector<Node> nodes;
-        };
-
 
         struct Triangle{
             int A;
             int B;
             int C;
         };
+
+        Variant json;
+        Variant bin;
+
 
         int num_vertices;
         int num_triangles;
@@ -92,7 +55,22 @@ class GLTF{
         void setModel(const byte* data, int data_length);
 
         // Compacts the given vertices and sets the model to them
-        void setModel(std::vector<glm::vec3> vertices, std::vector<Triangle> triangles);
+        void setModel(const std::vector<glm::vec3>& vertices, const std::vector<Triangle>& triangles);
+
+        static void addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+            const Variant& primitive, const glm::mat4& transform, const Variant& json, const Variant& bin);
+
+        static void addMesh(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+            int mesh_id, const glm::mat4& transform, const Variant& json, const Variant& bin);
+
+        static void addNode(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+            int node_id, const glm::mat4& transform, const Variant& json, const Variant& bin);
+
+        static void addScene(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+            int scene_id, const Variant& json, const Variant& bin);
+
+        static Accessor access(int accessor_id, const Variant& json, const Variant& bin);
+
 
         // hashes a vertex to allow duplicates ot be detected and merged
         int hashVertex(glm::vec3 v);
