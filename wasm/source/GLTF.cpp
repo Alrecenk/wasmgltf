@@ -7,13 +7,16 @@
 #include <string>
 #include <limits>
 #include <stdlib.h>
+#include <queue>
 
 using std::string;
 using std::vector;
 using std::map;
 using glm::vec3;
+using glm::mat4;
 typedef GLTF::Triangle Triangle;
 using std::string;
+using std::queue;
 
 
 // Constructor
@@ -85,6 +88,9 @@ Variant GLTF::getChangedBuffers(){
 
 void GLTF::setModel(const byte* data, int data_length){
     
+    vector<vec3> new_vertices;
+    vector<Triangle> new_triangles;
+
     printf ("num bytes: %d \n", data_length);
     printf("GLB Magic: %u  JSON_CHUNK: %u\n", 0x46546C67, 0x4E4F534A);
     uint magic_num = *(uint *)data;
@@ -103,25 +109,28 @@ void GLTF::setModel(const byte* data, int data_length){
 
             string header = string((char *) (data + 20), JSON_length);
             //Variant::printJSON(s);
-            Variant glb = Variant::parseJSON(header);
+            json = Variant::parseJSON(header);
+            json.printFormatted();
+            int bin_chunk_start = 20 + JSON_length ;
             
-            printf("meshes:\n");
-            glb["meshes"].printFormatted();
-            printf("scene:\n");
-            glb["scenes"].printFormatted();
-            printf("Node:\n");
-            glb["nodes"][glb["scenes"][0]["nodes"][0]].printFormatted();
-            printf("Mesh:\n");
-            glb["meshes"][glb["nodes"][glb["scenes"][0]["nodes"][0]]["mesh"]].printFormatted();
+            if(bin_chunk_start %4 != 0){
+                bin_chunk_start += 4 - (bin_chunk_start %4);
+            }
+            uint bin_length = *((uint*)(data+bin_chunk_start)) ;
+            uint second_chunk_type = *((uint*)(data+bin_chunk_start+4)) ;
+            if(second_chunk_type == 0x004E4942){
+                printf("Bin chunk found!\n");
+                printf("Bin size: %d \n", bin_length);
+                bin = Variant(data+bin_chunk_start+8, bin_length);
+                int default_scene = 0 ;
+                if(json["scene"].defined()){
+                    default_scene = json["scene"].getInt() ;
+                }
+                addScene(new_vertices, new_triangles, default_scene, json, bin) ;
 
-
-            //obj.printFormatted();
-            printf("\n");
-            
-
-            
-
-            
+            }else{
+                printf("Bin chunk not found after json !(got %d)\n", second_chunk_type);
+            }
 
            
         }else{
@@ -131,16 +140,189 @@ void GLTF::setModel(const byte* data, int data_length){
     }else{
         printf("Not a GLB file! %d != %d\n", magic_num, 0x46546C67);
     }
-    vector<vec3> new_vertices;
-    vector<Triangle> new_triangles;
-
+    
+    printf("Total triangles: %d\n",(int) new_triangles.size());
     setModel(new_vertices, new_triangles);
 
 }
 
+GLTF::Accessor GLTF::access(int accessor_id, const Variant& json, const Variant& bin){
+    auto accessor = json["accessors"][accessor_id];
+    string type = accessor["type"].getString();
+    uint c_type = (uint)(accessor["componentType"].getInt());
+    auto view = json["bufferViews"][accessor["bufferView"]];
+    int offset = view["byteOffset"].getInt();
+    int byteLength = view["byteLength"].getInt();
+    printf("offset: %d, byteLength %d \n", offset, byteLength);
+    if(c_type == 5126){ // 32 bit float
+        return {type, c_type, Variant((float*)(bin.ptr + 4 + offset), byteLength/4)} ;
+    }else if(c_type == 5120 || 5121){ // signed and unsigned byte
+        return {type, c_type, Variant(bin.ptr + 4 + offset, byteLength)} ;
+    }else if(c_type == 5122 || c_type == 5123){ // shorts
+        return {type, c_type, Variant((short*)(bin.ptr + 4 + offset), byteLength/2)} ;
+    }else if(c_type == 5125){ // unsigned int
+        return {type, c_type, Variant((int*)(bin.ptr + 4 + offset), byteLength/4)} ;
+    }else{
+        printf("unrecognized accessor component type, behavior undefined!\n");
+        return {type, c_type, Variant(bin.ptr + offset + 4, byteLength)} ;
+    }
+}
+
+
+
+//TODO consider using quaternion down the hierarchy recursion instead of mat4 for better precision/speed.
+void GLTF::addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+                        const Variant& primitive, const glm::mat4& transform, const Variant& json, const Variant& bin){
+    printf("Adding pimitive:\n");
+    primitive.printFormatted();
+    if(primitive["mode"].defined() && primitive["mode"].getInt() != 3){
+        printf("Primitive mode %d not implemented yet. Skipping.\n", primitive["mode"].getInt()); // TODO
+        return ;
+    }
+
+    
+    GLTF::Accessor pa = GLTF::access(primitive["attributes"]["POSITION"].getInt(), json, bin);
+    if(pa.type != "VEC3" || pa.component_type != 5126){
+        printf("expected vec3 floats for position, aborting.\n");
+        return ;
+    }
+
+    pa.data.printFormatted();
+
+
+    int num_vertices = pa.data.getArrayLength()/3;
+    printf("num_vertices: %d \n", num_vertices);
+    float* point_data = pa.data.getFloatArray(); // still held by Variant, not a memory leak
+    uint* index_data = nullptr; // this one you need to be careful
+    int num_indices = 0 ;
+
+    int start_vertices = vertices.size();
+    printf("Start vertices: %d \n", start_vertices); 
+
+    if(primitive["indices"].defined()){
+        printf("Found indices!\n");
+        GLTF::Accessor ia = GLTF::access(primitive["indices"].getInt(), json, bin);
+        if(ia.type == "SCALAR"){
+            if(ia.component_type == 5121){
+                printf("unsigned byte indices, technically vlaid, but not yet implemented, aborting\n"); // TODO
+                return ;
+            }else if(ia.component_type == 5123){
+                printf("unsigned short indices\n");
+                num_indices = ia.data.getArrayLength();
+                short* shorts = ia.data.getShortArray();
+                index_data = (uint*)malloc(4*num_indices);
+                for(int k=0;k<num_indices;k++){
+                    index_data[k] = (unsigned short)shorts[k];
+                }
+            }else if(ia.component_type == 5125){
+                printf("unsigned int indices\n");
+                num_indices = ia.data.getArrayLength();
+                int* ints = ia.data.getIntArray();
+                index_data = (uint*)malloc(4*num_indices);
+                for(int k=0;k<num_indices;k++){
+                    index_data[k] = (unsigned int)ints[k];
+                }
+            }else{
+                printf("Indices are not a valid type ( %d)  aborting\n", ia.component_type);
+                return ;
+            }
+
+            if(num_indices > 0){
+                printf("Found points and indices successfully!\n");
+                
+                for(int k=0;k<num_vertices;k++){
+                    //printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
+                    vertices.push_back(vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]));
+                }
+
+                for(int k=0;k<num_indices;k+=3){
+                    triangles.push_back({(int)index_data[k]+start_vertices,
+                                    (int)index_data[k+1]+start_vertices, 
+                                    (int)index_data[k+2]+start_vertices});
+                }
+
+                free(index_data);
+            }
+
+        }else{
+            printf("Indces are not scalar, aborting\n");
+            return ;
+        }
+    }else{
+        printf("no indices found.\n"); //TODO
+        for(int k=0;k<num_vertices;k++){
+            //printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
+            vertices.push_back(vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]));
+            if(k%3 == 2){
+                triangles.push_back({k-2+start_vertices,
+                                   k-1+start_vertices, 
+                                    k+start_vertices});
+            }
+        }
+    }
+}
+
+void GLTF::addMesh(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+                   int mesh_id, const glm::mat4& transform, const Variant& json, const Variant& bin){
+    printf("Adding mesh %d!\n", mesh_id);
+
+    auto primitives = json["meshes"][mesh_id]["primitives"];
+    for(int k=0;k<primitives.getArrayLength();k++){
+        addPrimitive(vertices, triangles, primitives[k], transform, json, bin);
+    }
+}
+
+void GLTF::addNode(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+                   int node_id, const glm::mat4& transform, const Variant& json, const Variant& bin){
+    printf("Adding node %d!\n", node_id);
+    auto node = json["nodes"][node_id];
+
+    mat4 new_transform = transform ;
+    if(node["matrix"].defined()){
+        printf("Node has matrix!\n");
+        //new_transform *= M;
+    }else{
+        if(node["translation"].defined()){
+            printf("Node has translation!\n");
+            //new_transform *= glm::translate();
+        }
+        if(node["rotation"].defined()){
+            printf("Node has rotation!\n");
+            //new_transform *= glm::rotate() ;
+        }
+        if(node["scale"].defined()){
+            printf("Node has scale!\n");
+            //new_transform *= glm::scale();
+        }
+    }
+    
+    if(node["mesh"].defined()){
+        int mesh_id = node["mesh"].getInt();
+        addMesh(vertices, triangles, mesh_id, new_transform, json, bin);
+    }
+    if(node["children"].defined()){
+        auto nodes = node["children"];
+        for(int k=0;k<nodes.getArrayLength();k++){
+            int node_id = nodes[k].getInt();
+            addNode(vertices, triangles, node_id, new_transform, json, bin);
+        }
+    }
+}
+
+void GLTF::addScene(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+                    int scene_id, const Variant& json, const Variant& bin){
+    printf("Adding scene %d!\n", scene_id);
+    auto nodes = json["scenes"][scene_id]["nodes"];
+    glm::mat4 ident;
+    for(int k=0;k<nodes.getArrayLength();k++){
+        int node_id = nodes[k].getInt();
+        addNode(vertices, triangles, node_id, ident, json, bin);
+    }
+}
+
 
 // Compacts the given vertices and sets the model to them
-void GLTF::setModel(std::vector<vec3> vertices, std::vector<Triangle> triangles){
+void GLTF::setModel(const std::vector<vec3>& vertices, const std::vector<Triangle>& triangles){
 
     vector<vec3> new_vertices;
     vector<Triangle> new_triangles;
@@ -206,7 +388,7 @@ void GLTF::setModel(std::vector<vec3> vertices, std::vector<Triangle> triangles)
     }
 }
 
-// hashes a vertex to allow duplicates ot be detected and merged
+// hashes a vertex to allow duplicates to be detected and merged
 int GLTF::hashVertex(vec3 v){
     return Variant(v).hash();
 }
