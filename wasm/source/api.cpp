@@ -56,14 +56,18 @@ byte* setModel(byte* ptr){
     int num_bytes = obj["data"].getArrayLength();
     model_global.setModel(byte_array, num_bytes);
 
-    float zoom = 0 ;
+    float size = 0 ;
+    vec3 center(0,0,0);
     for(int k=0;k<3;k++){
-        zoom = fmax(zoom , abs(model_global.max[k]));
-        zoom = fmax(zoom , abs(model_global.min[k]));
+        center[k] = (model_global.max[k]+ model_global.min[k])*0.5f ;
+        size = fmax(size , abs(model_global.max[k]-center[k]));
+        size = fmax(size , abs(model_global.min[k]-center[k]));
+        
     }
     //printf("Zoom:%f\n", zoom);
     map<string, Variant> ret_map;
-    ret_map["recommended_zoom"] = Variant(zoom*2);
+    ret_map["center"] = Variant(center);
+    ret_map["size"] = Variant(size);
     return pack(ret_map);
 }
 

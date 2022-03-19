@@ -934,7 +934,7 @@ std::pair<Variant,int> Variant::parseJSONValue(const std::string& json, int valu
                     int i = std::stoi(value);
                     var = Variant(i);
                 }else{
-                    double d =std::stod(value);
+                    double d = std::stod(value);
                     var = Variant(d);
                 }
             }

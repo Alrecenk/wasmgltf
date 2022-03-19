@@ -4,6 +4,8 @@
 #include "Variant.h"
 #include <set>
 #include "glm/glm.hpp"
+#include "glm/gtx/transform.hpp"
+#include "glm/gtc/quaternion.hpp"
 
 typedef Variant::Type Type;
 typedef unsigned int uint;

@@ -13,6 +13,7 @@ using std::string;
 using std::vector;
 using std::map;
 using glm::vec3;
+using glm::vec4;
 using glm::mat4;
 typedef GLTF::Triangle Triangle;
 using std::string;
@@ -166,31 +167,20 @@ GLTF::Accessor GLTF::access(int accessor_id, const Variant& json, const Variant&
     }
     int byteLength = view["byteLength"].getInt();
     
-
     int stride = element_length;
     if(view["byteStride"].defined()){
         stride = view["byteStride"].getInt();
-    }/*else if(stride %4 != 0){ // pad to multiple of 4 to match spec
-        stride += 4 - (stride%4) ; 
-    }*/
-    printf("Count: %d, Element length: %d Stride:%d \n", count, element_length, stride);
+    }
 
     GLTF::Accessor result = {type, c_type, Variant()};
-    
     result.data.ptr = (byte*)malloc(4 + element_length*count);
     ((int*)result.data.ptr)[0] = count * TYPE_LENGTH[type]; 
-
     for(int k=0;k<count;k++){
         memcpy(result.data.ptr + 4 +k*element_length, bin.ptr + 4 + offset + k*stride, element_length);
     }
 
-
-
-    printf("offset: %d, byteLength %d \n", offset, byteLength);
-
     if(c_type == 5126){ // 32 bit float
         result.data.type_ = Variant::FLOAT_ARRAY;
-
     }else if(c_type == 5120 || 5121){ // signed and unsigned byte
         result.data.type_ = Variant::BYTE_ARRAY ;
     }else if(c_type == 5122 || c_type == 5123){ // shorts
@@ -198,7 +188,7 @@ GLTF::Accessor GLTF::access(int accessor_id, const Variant& json, const Variant&
     }else if(c_type == 5125){ // unsigned int
         result.data.type_ = Variant::INT_ARRAY ;
     }else{
-        printf("unrecognized accessor component type, behavior undefined!\n");
+        //printf("unrecognized accessor component type, behavior undefined!\n");
         result.data.type_ = Variant::BYTE ;
     }
 
@@ -210,7 +200,7 @@ GLTF::Accessor GLTF::access(int accessor_id, const Variant& json, const Variant&
 //TODO consider using quaternion down the hierarchy recursion instead of mat4 for better precision/speed.
 void GLTF::addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
                         const Variant& primitive, const glm::mat4& transform, const Variant& json, const Variant& bin){
-    printf("Adding pimitive:\n");
+    //printf("Adding primitive:\n");
     primitive.printFormatted();
     if(primitive["mode"].defined() && primitive["mode"].getInt() != 4){
         printf("Primitive mode %d not implemented yet. Skipping.\n", primitive["mode"].getInt()); // TODO
@@ -226,25 +216,24 @@ void GLTF::addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>&
 
     pa.data.printFormatted();
 
-
     int num_vertices = pa.data.getArrayLength()/3;
-    printf("num_vertices: %d \n", num_vertices);
+    //printf("num_vertices: %d \n", num_vertices);
     float* point_data = pa.data.getFloatArray(); // still held by Variant, not a memory leak
     uint* index_data = nullptr; // this one you need to be careful
     int num_indices = 0 ;
 
     int start_vertices = vertices.size();
-    printf("Start vertices: %d \n", start_vertices); 
+    //printf("Start vertices: %d \n", start_vertices); 
 
     if(primitive["indices"].defined()){
-        printf("Found indices!\n");
+        //printf("Found indices!\n");
         GLTF::Accessor ia = GLTF::access(primitive["indices"].getInt(), json, bin);
         if(ia.type == "SCALAR"){
             if(ia.component_type == 5121){
                 printf("unsigned byte indices, technically vlaid, but not yet implemented, aborting\n"); // TODO
                 return ;
             }else if(ia.component_type == 5123){
-                printf("unsigned short indices\n");
+                //printf("unsigned short indices\n");
                 num_indices = ia.data.getArrayLength();
                 short* shorts = ia.data.getShortArray();
                 index_data = (uint*)malloc(4*num_indices);
@@ -252,7 +241,7 @@ void GLTF::addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>&
                     index_data[k] = (unsigned short)shorts[k];
                 }
             }else if(ia.component_type == 5125){
-                printf("unsigned int indices\n");
+                //printf("unsigned int indices\n");
                 num_indices = ia.data.getArrayLength();
                 int* ints = ia.data.getIntArray();
                 index_data = (uint*)malloc(4*num_indices);
@@ -260,20 +249,23 @@ void GLTF::addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>&
                     index_data[k] = (unsigned int)ints[k];
                 }
             }else{
-                printf("Indices are not a valid type ( %d)  aborting\n", ia.component_type);
+                //printf("Indices are not a valid type ( %d)  aborting\n", ia.component_type);
                 return ;
             }
 
             if(num_indices > 0){
-                printf("Found points and indices successfully!\n");
+                //printf("Found points and indices successfully!\n");
                 
                 for(int k=0;k<num_vertices;k++){
-                    printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
-                    vertices.push_back(vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]));
+                    //printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
+                    vec3 v_local = vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]) ;
+                    vec4 v_global = transform*vec4(v_local,1);
+                    //printf("global: %f , %f , %f\n", v_global.x, v_global.y, v_global.z);
+                    vertices.push_back(vec3(v_global));
                 }
 
                 for(int k=0;k<num_indices;k+=3){
-                    printf("Triangle: %d , %d , %d\n", (int)index_data[k]+start_vertices, (int)index_data[k+1]+start_vertices,(int)index_data[k+2]+start_vertices);
+                    //printf("Triangle: %d , %d , %d\n", (int)index_data[k]+start_vertices, (int)index_data[k+1]+start_vertices,(int)index_data[k+2]+start_vertices);
                     triangles.push_back({(int)index_data[k]+start_vertices,
                                     (int)index_data[k+1]+start_vertices, 
                                     (int)index_data[k+2]+start_vertices});
@@ -283,13 +275,16 @@ void GLTF::addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>&
             }
 
         }else{
-            printf("Indces are not scalar, aborting\n");
+            printf("Indices are not scalar, aborting\n");
             return ;
         }
     }else{
-        printf("no indices found.\n"); //TODO
+        //printf("no indices found.\n"); //TODO
         for(int k=0;k<num_vertices;k++){
             //printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
+            vec3 v_local = vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]) ;
+            vec4 v_global = transform*vec4(v_local,1);
+            //printf("global: %f , %f , %f\n", v_global.x, v_global.y, v_global.z);
             vertices.push_back(vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]));
             if(k%3 == 2){
                 triangles.push_back({k-2+start_vertices,
@@ -317,21 +312,53 @@ void GLTF::addNode(std::vector<glm::vec3>& vertices, std::vector<Triangle>& tria
 
     mat4 new_transform = transform ;
     if(node["matrix"].defined()){
-        printf("Node has matrix!\n");
+        printf("Node has matrix not yet implemented!\n");
         //new_transform *= M;
     }else{
-        if(node["translation"].defined()){
-            printf("Node has translation!\n");
-            //new_transform *= glm::translate();
+        /*
+        printf("Initial transform:\n");
+            for(int k=0;k<4;k++){
+                printf("[ %f, %f, %f, %f]\n", new_transform[k][0], new_transform[k][1], new_transform[k][2], new_transform[k][3]);
+            }
+            */
+
+        Variant tv = node["translation"];
+        if(tv.defined()){
+            vec3 t = vec3(tv[0].getNumberAsFloat(), tv[1].getNumberAsFloat(), tv[2].getNumberAsFloat());
+            new_transform = glm::translate(new_transform, t);
+            /*
+            printf("After translate:\n");
+            for(int k=0;k<4;k++){
+                printf("[ %f, %f, %f, %f]\n", new_transform[k][0], new_transform[k][1], new_transform[k][2], new_transform[k][3]);
+            }
+            */
         }
-        if(node["rotation"].defined()){
-            printf("Node has rotation!\n");
-            //new_transform *= glm::rotate() ;
+        Variant rv = node["rotation"] ;
+        if(rv.defined()){
+            // GLB is XYZW but GLM:quat is WXYZ
+            glm::quat qrot(rv[3].getNumberAsFloat(), rv[0].getNumberAsFloat(), rv[1].getNumberAsFloat(), rv[2].getNumberAsFloat() );
+            new_transform *= glm::mat4_cast(qrot);
+            /*
+            printf("After rotate:\n");
+            for(int k=0;k<4;k++){
+                printf("[ %f, %f, %f, %f]\n", new_transform[k][0], new_transform[k][1], new_transform[k][2], new_transform[k][3]);
+            }
+            */
         }
-        if(node["scale"].defined()){
-            printf("Node has scale!\n");
-            //new_transform *= glm::scale();
+        Variant sv = node["scale"];
+        if(sv.defined()){
+            vec3 s = vec3(sv[0].getNumberAsFloat(), sv[1].getNumberAsFloat(), sv[2].getNumberAsFloat());
+            new_transform = glm::scale(new_transform, s);
+            /*
+            printf("After scale:\n");
+            for(int k=0;k<4;k++){
+                printf("[ %f, %f, %f, %f]\n", new_transform[k][0], new_transform[k][1], new_transform[k][2], new_transform[k][3]);
+            }
+            */
         }
+
+        
+        
     }
     
     if(node["mesh"].defined()){
@@ -351,7 +378,7 @@ void GLTF::addScene(std::vector<glm::vec3>& vertices, std::vector<Triangle>& tri
                     int scene_id, const Variant& json, const Variant& bin){
     printf("Adding scene %d!\n", scene_id);
     auto nodes = json["scenes"][scene_id]["nodes"];
-    glm::mat4 ident;
+    glm::mat4 ident(1);
     for(int k=0;k<nodes.getArrayLength();k++){
         int node_id = nodes[k].getInt();
         addNode(vertices, triangles, node_id, ident, json, bin);

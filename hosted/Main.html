@@ -325,9 +325,13 @@ function loadGLBFile() {
         if(load_data!= null){
             let params = {};
             params.data = load_data;
-            let zoom = tools.API.call("setModel", params, new Serializer()).recommended_zoom;
-            tools.renderer.setZoom(zoom,0);
-            current_mode.camera_zoom = zoom;
+            let m = tools.API.call("setModel", params, new Serializer()) ;
+            current_mode.camera_zoom = m.size*2.5;
+            current_mode.camera_focus = m.center ;
+            tools.renderer.startRotate(current_mode.camera_focus, {x:500.0,y:500.0});
+            tools.renderer.continueRotate({x:500.0,y:501.0});
+            tools.renderer.setZoom(current_mode.camera_zoom);
+
         }
     }
 
