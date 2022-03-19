@@ -147,25 +147,62 @@ void GLTF::setModel(const byte* data, int data_length){
 }
 
 GLTF::Accessor GLTF::access(int accessor_id, const Variant& json, const Variant& bin){
+
+    
+    map<string,int> TYPE_LENGTH = {{"SCALAR",1},{"VEC2",2},{"VEC3",3},{"VEC4",4},{"MAT2",4},{"MAT3",9},{"MAT4",16}} ; // TODO static const
+    map<int,int> COMPONENT_LENGTH = {{5120, 1},{5121, 1},{5122, 2},{5123, 2},{5125, 4},{5126, 4}}; // TODO static const
+
+    
     auto accessor = json["accessors"][accessor_id];
     string type = accessor["type"].getString();
     uint c_type = (uint)(accessor["componentType"].getInt());
+    int count = accessor["count"].getInt();
+    int element_length = TYPE_LENGTH[type] * COMPONENT_LENGTH[c_type];
+
     auto view = json["bufferViews"][accessor["bufferView"]];
     int offset = view["byteOffset"].getInt();
+    if(accessor["byteOffset"].defined()){
+        offset += accessor["byteOffset"].getInt();
+    }
     int byteLength = view["byteLength"].getInt();
+    
+
+    int stride = element_length;
+    if(view["byteStride"].defined()){
+        stride = view["byteStride"].getInt();
+    }/*else if(stride %4 != 0){ // pad to multiple of 4 to match spec
+        stride += 4 - (stride%4) ; 
+    }*/
+    printf("Count: %d, Element length: %d Stride:%d \n", count, element_length, stride);
+
+    GLTF::Accessor result = {type, c_type, Variant()};
+    
+    result.data.ptr = (byte*)malloc(4 + element_length*count);
+    ((int*)result.data.ptr)[0] = count * TYPE_LENGTH[type]; 
+
+    for(int k=0;k<count;k++){
+        memcpy(result.data.ptr + 4 +k*element_length, bin.ptr + 4 + offset + k*stride, element_length);
+    }
+
+
+
     printf("offset: %d, byteLength %d \n", offset, byteLength);
+
     if(c_type == 5126){ // 32 bit float
-        return {type, c_type, Variant((float*)(bin.ptr + 4 + offset), byteLength/4)} ;
+        result.data.type_ = Variant::FLOAT_ARRAY;
+
     }else if(c_type == 5120 || 5121){ // signed and unsigned byte
-        return {type, c_type, Variant(bin.ptr + 4 + offset, byteLength)} ;
+        result.data.type_ = Variant::BYTE_ARRAY ;
     }else if(c_type == 5122 || c_type == 5123){ // shorts
-        return {type, c_type, Variant((short*)(bin.ptr + 4 + offset), byteLength/2)} ;
+        result.data.type_ = Variant::SHORT_ARRAY ;
     }else if(c_type == 5125){ // unsigned int
-        return {type, c_type, Variant((int*)(bin.ptr + 4 + offset), byteLength/4)} ;
+        result.data.type_ = Variant::INT_ARRAY ;
     }else{
         printf("unrecognized accessor component type, behavior undefined!\n");
-        return {type, c_type, Variant(bin.ptr + offset + 4, byteLength)} ;
+        result.data.type_ = Variant::BYTE ;
     }
+
+    return result ;
 }
 
 
@@ -175,7 +212,7 @@ void GLTF::addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>&
                         const Variant& primitive, const glm::mat4& transform, const Variant& json, const Variant& bin){
     printf("Adding pimitive:\n");
     primitive.printFormatted();
-    if(primitive["mode"].defined() && primitive["mode"].getInt() != 3){
+    if(primitive["mode"].defined() && primitive["mode"].getInt() != 4){
         printf("Primitive mode %d not implemented yet. Skipping.\n", primitive["mode"].getInt()); // TODO
         return ;
     }
@@ -231,11 +268,12 @@ void GLTF::addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>&
                 printf("Found points and indices successfully!\n");
                 
                 for(int k=0;k<num_vertices;k++){
-                    //printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
+                    printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
                     vertices.push_back(vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]));
                 }
 
                 for(int k=0;k<num_indices;k+=3){
+                    printf("Triangle: %d , %d , %d\n", (int)index_data[k]+start_vertices, (int)index_data[k+1]+start_vertices,(int)index_data[k+2]+start_vertices);
                     triangles.push_back({(int)index_data[k]+start_vertices,
                                     (int)index_data[k+1]+start_vertices, 
                                     (int)index_data[k+2]+start_vertices});

@@ -120,10 +120,7 @@ class CameraMode extends ExecutionMode{
         // Firefox and Chrome get different numbers from different events. One is 3 the other is -120 per notch.
         var scroll = event.wheelDelta ? -event.wheelDelta*.2 : event.detail*8; 
         // Adjust camera zoom by mouse wheel scroll.
-		this.camera_zoom += scroll/15.0;
-		if(this.camera_zoom < 5){
-			this.camera_zoom = 5;
-		}
+		this.camera_zoom *= Math.pow(1.005,scroll);
         renderer.setZoom(this.camera_zoom, 0) ;
     }
 

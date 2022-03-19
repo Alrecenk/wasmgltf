@@ -325,7 +325,9 @@ function loadGLBFile() {
         if(load_data!= null){
             let params = {};
             params.data = load_data;
-            tools.API.call("setModel", params, new Serializer());
+            let zoom = tools.API.call("setModel", params, new Serializer()).recommended_zoom;
+            tools.renderer.setZoom(zoom,0);
+            current_mode.camera_zoom = zoom;
         }
     }
 

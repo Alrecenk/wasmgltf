@@ -45,6 +45,9 @@ class Renderer{
         mat4.perspective(this.pMatrix, 45, this.gl.viewportWidth / this.gl.viewportHeight, 0.1, 3000.0);
         this.camera_pos = [20,20,20];
         mat4.lookAt(this.mvMatrix, this.camera_pos, [0,0,0], [0,1,0] );
+
+        //console.log(this.gl);
+        
     }
 
     // Initialize webGL on a canvas
