@@ -155,18 +155,24 @@ GLTF::Accessor GLTF::access(int accessor_id, const Variant& json, const Variant&
 
     
     auto accessor = json["accessors"][accessor_id];
+    //printf("accessor:\n");
+    //accessor.printFormatted();
     string type = accessor["type"].getString();
     uint c_type = (uint)(accessor["componentType"].getInt());
     int count = accessor["count"].getInt();
     int element_length = TYPE_LENGTH[type] * COMPONENT_LENGTH[c_type];
 
     auto view = json["bufferViews"][accessor["bufferView"]];
-    int offset = view["byteOffset"].getInt();
+    int offset = 0 ;
+    if(view["byteOffset"].defined()){
+        offset = view["byteOffset"].getInt();
+    }
     if(accessor["byteOffset"].defined()){
         offset += accessor["byteOffset"].getInt();
     }
     int byteLength = view["byteLength"].getInt();
-    
+    //printf("view:\n");
+    //view.printFormatted();
     int stride = element_length;
     if(view["byteStride"].defined()){
         stride = view["byteStride"].getInt();
@@ -189,7 +195,7 @@ GLTF::Accessor GLTF::access(int accessor_id, const Variant& json, const Variant&
         result.data.type_ = Variant::INT_ARRAY ;
     }else{
         //printf("unrecognized accessor component type, behavior undefined!\n");
-        result.data.type_ = Variant::BYTE ;
+        result.data.type_ = Variant::BYTE_ARRAY ;
     }
 
     return result ;
@@ -214,7 +220,7 @@ void GLTF::addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>&
         return ;
     }
 
-    pa.data.printFormatted();
+    //pa.data.printFormatted();
 
     int num_vertices = pa.data.getArrayLength()/3;
     //printf("num_vertices: %d \n", num_vertices);

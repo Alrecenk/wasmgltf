@@ -958,7 +958,7 @@ void Variant::printJSON(const std::string& json){
 
     for(int k=0;k < json.length(); k++){
         char c = json[k];
-         if(c == '['){
+         if(c == '[' && k!=0){
             bool found_nest = false;
             int j=k+1;
             while(json[j] != ']'){

@@ -40,7 +40,7 @@ class Renderer{
         console.log(this.gl.getParameter(this.gl.SHADING_LANGUAGE_VERSION));
         console.log(this.gl.getParameter(this.gl.VENDOR));
         this.gl.getExtension('OES_texture_float');
-        this.setLightPosition([0,0,250]);
+        this.setLightPosition([0,0,-250]);
 
         mat4.perspective(this.pMatrix, 45, this.gl.viewportWidth / this.gl.viewportHeight, 0.1, 3000.0);
         this.camera_pos = [20,20,20];
@@ -190,6 +190,8 @@ class Renderer{
         this.start_position = [this.camera_pos[0], this.camera_pos[1], this.camera_pos[2]] ;
         this.start_pointer = pointer ;
         this.start_camera = mat4.clone(this.mvMatrix);
+
+        this.setLightPosition([this.camera_pos[0], this.camera_pos[1] , this.camera_pos[2]]);
     }
 
     moveCamera(move){
