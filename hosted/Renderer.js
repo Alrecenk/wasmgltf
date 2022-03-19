@@ -200,6 +200,9 @@ class Renderer{
     }
 
     setZoom(zoom, ground_height){
+        if(!ground_height){
+            ground_height = this.action_focus[1] ;
+        }
         // Send a ray through the center of the screen
         let ray = this.getRay([this.gl.viewportWidth*0.5, this.gl.viewportHeight*0.5]) ;
         //intersect it with the ground then back up by zoom

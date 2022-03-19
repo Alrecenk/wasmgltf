@@ -17,6 +17,7 @@ class PaintMode extends ExecutionMode{
     
     rotating = false;
     camera_zoom;
+    camera_focus = [0,0,0];
 
     // Tools is an object with string keys that may include things such as the canvas,
     // API WASM Module, an Interface manager, and/or a mesh manager for shared webGL functionality
@@ -66,7 +67,7 @@ class PaintMode extends ExecutionMode{
         
         if(this.mouse_button == 2){
             this.rotating = true;
-            this.tools.renderer.startRotate([0,0,0], pointers[0]);
+            this.tools.renderer.startRotate(this.camera_focus, pointers[0]);
         }else{
             let ray = tools.renderer.getRay([this.mouse_down_x,this.mouse_down_y]);
             let trace_data = tools.API.call("rayTrace", ray, new Serializer()); 
@@ -121,7 +122,7 @@ class PaintMode extends ExecutionMode{
         var scroll = event.wheelDelta ? -event.wheelDelta*.2 : event.detail*8; 
         // Adjust camera zoom by mouse wheel scroll.
 		this.camera_zoom *= Math.pow(1.005,scroll);
-        renderer.setZoom(this.camera_zoom, 0) ;
+        renderer.setZoom(this.camera_zoom) ;
     }
 
 	keyDownListener(event){
