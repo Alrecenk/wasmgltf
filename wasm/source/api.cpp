@@ -55,7 +55,16 @@ byte* setModel(byte* ptr){
     byte* byte_array = obj["data"].getByteArray();
     int num_bytes = obj["data"].getArrayLength();
     model_global.setModel(byte_array, num_bytes);
-    return emptyReturn() ;
+
+    float zoom = 0 ;
+    for(int k=0;k<3;k++){
+        zoom = fmax(zoom , abs(model_global.max[k]));
+        zoom = fmax(zoom , abs(model_global.min[k]));
+    }
+    //printf("Zoom:%f\n", zoom);
+    map<string, Variant> ret_map;
+    ret_map["recommended_zoom"] = Variant(zoom*2);
+    return pack(ret_map);
 }
 
 byte* getUpdatedBuffers(byte* ptr){
