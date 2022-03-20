@@ -240,6 +240,24 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
     int num_vertices = pa.data.getArrayLength()/3;
     //printf("num_vertices: %d \n", num_vertices);
     float* point_data = pa.data.getFloatArray(); // still held by Variant, not a memory leak
+
+    bool has_normals = false;
+    GLTF::Accessor na ;
+    float* normal_data = nullptr; // still held by Variant, not a memory leak
+    
+
+    if(primitive["attributes"]["NORMAL"].defined()){
+        na = GLTF::access(primitive["attributes"]["NORMAL"].getInt(), json, bin);
+        if(na.type == "VEC3" && na.component_type == 5126){
+            has_normals = true;
+            normal_data = na.data.getFloatArray();
+        }else{
+            printf("Normals are a weird type, skipping %s : %d \n" , na.type.c_str(), na.component_type);
+        }
+
+    }
+
+
     uint* index_data = nullptr; // this one you need to be careful
     int num_indices = 0 ;
 
@@ -270,54 +288,47 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
                     index_data[k] = (unsigned int)ints[k];
                 }
             }else{
-                //printf("Indices are not a valid type ( %d)  aborting\n", ia.component_type);
+                printf("Indices are not a valid type ( %d)  aborting\n", ia.component_type);
                 return ;
             }
-
-            if(num_indices > 0){
-                //printf("Found points and indices successfully!\n");
-                
-                for(int k=0;k<num_vertices;k++){
-                    //printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
-                    vec3 v_local = vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]) ;
-                    vec4 v_global = transform*vec4(v_local,1);
-                    //printf("global: %f , %f , %f\n", v_global.x, v_global.y, v_global.z);
-                    Vertex v ;
-                    v.position = vec3(v_global);
-                    vertices.push_back(v);
-                }
-
-                for(int k=0;k<num_indices;k+=3){
-                    //printf("Triangle: %d , %d , %d\n", (int)index_data[k]+start_vertices, (int)index_data[k+1]+start_vertices,(int)index_data[k+2]+start_vertices);
-                    triangles.push_back({(int)index_data[k]+start_vertices,
-                                    (int)index_data[k+1]+start_vertices, 
-                                    (int)index_data[k+2]+start_vertices});
-                }
-
-                free(index_data);
-            }
-
         }else{
             printf("Indices are not scalar, aborting\n");
             return ;
         }
-    }else{
-        //printf("no indices found.\n"); //TODO
-        for(int k=0;k<num_vertices;k++){
-            //printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
-            vec3 v_local = vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]) ;
-            vec4 v_global = transform*vec4(v_local,1);
-            //printf("global: %f , %f , %f\n", v_global.x, v_global.y, v_global.z);
-            Vertex v ;
-            v.position = vec3(v_global);
-            vertices.push_back(v);
-            if(k%3 == 2){
-                triangles.push_back({k-2+start_vertices,
-                                   k-1+start_vertices, 
-                                    k+start_vertices});
-            }
+    }else{ // If no indices defined
+        // indices are sequential
+        num_indices = num_vertices;
+        index_data = (uint*)malloc(4*num_indices);
+        for(int k=0;k<num_indices;k++){
+            index_data[k] = k ;
         }
     }
+
+
+    
+    for(int k=0;k<num_vertices;k++){
+        //printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
+        vec3 v_local = vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]) ;
+        vec4 v_global = transform*vec4(v_local,1);
+        //printf("global: %f , %f , %f\n", v_global.x, v_global.y, v_global.z);
+        Vertex v ;
+        v.position = vec3(v_global);
+        if(has_normals){
+            vec3 n_local = vec3(normal_data[3*k], normal_data[3*k+1], normal_data[3*k+2]) ;
+            vec4 n_global = transform*vec4(n_local,0);
+            v.normal = vec3(n_global);
+        }
+        vertices.push_back(v);
+    }
+
+    for(int k=0;k<num_indices;k+=3){
+        //printf("Triangle: %d , %d , %d\n", (int)index_data[k]+start_vertices, (int)index_data[k+1]+start_vertices,(int)index_data[k+2]+start_vertices);
+        triangles.push_back({(int)index_data[k]+start_vertices,
+                        (int)index_data[k+1]+start_vertices, 
+                        (int)index_data[k+2]+start_vertices});
+    }
+
+    free(index_data);
 }
 
 void GLTF::addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
