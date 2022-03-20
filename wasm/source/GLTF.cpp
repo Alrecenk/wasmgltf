@@ -107,6 +107,8 @@ void GLTF::setModel(const byte* data, int data_length){
     
     vector<Vertex> new_vertices;
     vector<Triangle> new_triangles;
+    this->materials.clear();
+    this->images.clear();
 
     printf ("num bytes: %d \n", data_length);
     printf("GLB Magic: %u  JSON_CHUNK: %u\n", 0x46546C67, 0x4E4F534A);
@@ -269,9 +271,10 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
     float* texcoords_data = nullptr; // still held by Variant, not a memory leak
     if(primitive["attributes"]["TEXCOORD_0"].defined()){
         ta = GLTF::access(primitive["attributes"]["TEXCOORD_0"].getInt(), json, bin);
+
         if(ta.type == "VEC2" && ta.component_type == 5126){
             has_texcoords = true;
-            texcoords_data = na.data.getFloatArray();
+            texcoords_data = ta.data.getFloatArray();
             printf("Got Texture coordinates!\n");
         }else{
             printf("Texture coordinates are a weird type, skipping %s : %d \n" , ta.type.c_str(), ta.component_type);
@@ -325,7 +328,19 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
         }
     }
 
-
+    int material = 0 ;
+    if(primitive["material"].defined()){
+        printf("Got material!\n");
+        material = primitive["material"].getInt();
+    }
+    Variant iv = json["materials"][material]["pbrMetallicRoughness"]["baseColorTexture"]["index"] ;
+    int image = -1;
+    if(iv.defined()){
+        //printf("Found mesh primitive texture!\n");
+        image = iv.getInt();
+        
+        //printf("texture in primitive  %d x%d \n ", img.width, img.height);
+    }
     
     for(int k=0;k<num_vertices;k++){
         //printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
@@ -341,15 +356,28 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
         }
         if(has_texcoords){
             v.tex_coord = vec2(texcoords_data[2*k], texcoords_data[2*k+1]) ;
+            if(image >= 0){
+                //printf("tex coords: %f, %f\n", v.tex_coord[0],v.tex_coord[1]);
+                Image &img = this->images[image];
+                byte* image_bytes = img.data.getByteArray() ;
+                //printf("texture  %d x%d \n ", img.width, img.height);
+                int x = (int)(img.width * v.tex_coord[0]) ;
+                int y = (int)(img.height * v.tex_coord[1]) ;
+                //printf("pixel %d, %d \n ", x, y);
+                
+                byte r = image_bytes[(y*img.width + x)*img.channels];
+                byte g = image_bytes[(y*img.width + x)*img.channels+1];
+                byte b = image_bytes[(y*img.width + x)*img.channels+2];
+                //printf("color %d, %d, %d \n ", r,g,b);
+                v.color_mult = vec3(r/255.0f, g/255.0f, b/255.0f);
+                //printf(" f color %f, %f, %f \n ", v.color_mult.r,v.color_mult.g,v.color_mult.b);
+
+            }
         }
         vertices.push_back(v);
     }
 
-    int material = 0 ;
-    if(primitive["material"].defined()){
-        printf("Got material!\n");
-        material = primitive["material"].getInt();
-    }
+    
     for(int k=0;k<num_indices;k+=3){
         //printf("Triangle: %d , %d , %d\n", (int)index_data[k]+start_vertices, (int)index_data[k+1]+start_vertices,(int)index_data[k+2]+start_vertices);
         triangles.push_back({(int)index_data[k]+start_vertices,
@@ -368,35 +396,35 @@ void GLTF::addMaterial(int material_id, const Variant& json, const Variant& bin)
         m_json.printFormatted();
         Material mat ;
         if(m_json["name"].defined()){
-            printf("Got name!\n");
+            //printf("Got name!\n");
             mat.name = m_json["name"].getString();
         }
         // Doublesided can appear in two different places, prefer deeper one
         if(m_json["pbrMetallicRoughness"]["doubleSided"].defined()){
-            printf("Got double sided!\n");
+            //printf("Got double sided!\n");
             mat.double_sided = m_json["pbrMetallicRoughness"]["doubleSided"].getInt() > 0;
         }else if(m_json["doubleSided"].defined()){
-            printf("Got double sided!\n");
+            //printf("Got double sided!\n");
             mat.double_sided = m_json["doubleSided"].getInt() > 0;
         }
         if(m_json["pbrMetallicRoughness"]["metallicFactor"].defined()){
-            printf("Got metallic!\n");
+            //printf("Got metallic!\n");
             mat.metallic = m_json["pbrMetallicRoughness"]["metallicFactor"].getNumberAsFloat();
         }
 
         if(m_json["pbrMetallicRoughness"]["roughnessFactor"].defined()){
-            printf("Got roughness!\n");
+            //printf("Got roughness!\n");
             mat.roughness = m_json["pbrMetallicRoughness"]["roughnessFactor"].getNumberAsFloat();
         }
 
         if(m_json["pbrMetallicRoughness"]["baseColorFactor"].defined()){
-            printf("Got base color!\n");
+            //printf("Got base color!\n");
             Variant c = m_json["pbrMetallicRoughness"]["baseColorFactor"] ;
             mat.color = vec3(c[0].getNumberAsFloat(), c[1].getNumberAsFloat(), c[2].getNumberAsFloat());
         }
 
         if(m_json["pbrMetallicRoughness"]["baseColorTexture"]["index"].defined()){
-            printf("Got color texture index!\n");
+            //printf("Got color texture index!\n");
             mat.image = m_json["pbrMetallicRoughness"]["baseColorTexture"]["index"].getInt();
             addImage(mat.image, json, bin);
         }
@@ -418,10 +446,29 @@ void GLTF::addMaterial(int material_id, const Variant& json, const Variant& bin)
 void GLTF::addImage(int image_id, const Variant& json, const Variant& bin){
     printf("Adding image %d!\n", image_id);
     if(this->images.find(image_id) == this->images.end()){
+        Image& img = this->images[image_id] ;
+        Variant i_json = json["images"][image_id];
+        i_json.printFormatted();
+        if(i_json["name"].defined()){
+            printf("Got name!\n");
+            img.name = i_json["name"].getString();
+        }
+        if(!json["bufferViews"][i_json["bufferView"]].defined()){
+            printf("No buffer view on image, external resurcs not supported, aborting texture load.\n");
+            return ;
+        }
 
+        auto view = json["bufferViews"][i_json["bufferView"]];
+        int offset = 0 ;
+        if(view["byteOffset"].defined()){
+            offset = view["byteOffset"].getInt();
+        }
+        int byteLength = view["byteLength"].getInt();
 
-    //TODO
-
+        byte* pixels = stbi_load_from_memory(bin.ptr + 4 + offset, byteLength, &img.width, &img.height, &img.channels, 0) ;
+        img.data = Variant(pixels,img.width*img.height*img.channels);
+        free(pixels);
+        printf("Loaded texture: %ix%ix%i = %d \n", img.width, img.height, img.channels, byteLength);
     }
 }
 
@@ -487,9 +534,6 @@ void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangl
             }
             */
         }
-
-        
-        
     }
     
     if(node["mesh"].defined()){

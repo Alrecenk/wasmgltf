@@ -45,11 +45,11 @@ class GLTF{
         };
             
         struct Image{
-            string name = "";
+            std::string name = "";
             int width = 0 ;
             int height = 0 ;
             int channels = 0 ;
-            Variant image; // byte array
+            Variant data; // byte array
         };
 
 
@@ -90,16 +90,16 @@ class GLTF{
         // Compacts the given vertices and sets the model to them
         void setModel(const std::vector<Vertex>& vertices, const std::vector<Triangle>& triangles);
 
-        static void addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
+        void addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
             const Variant& primitive, const glm::mat4& transform, const Variant& json, const Variant& bin);
 
-        static void addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
+        void addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
             int mesh_id, const glm::mat4& transform, const Variant& json, const Variant& bin);
 
-        static void addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
+        void addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
             int node_id, const glm::mat4& transform, const Variant& json, const Variant& bin);
 
-        static void addScene(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
+        void addScene(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
             int scene_id, const Variant& json, const Variant& bin);
 
         static Accessor access(int accessor_id, const Variant& json, const Variant& bin);
