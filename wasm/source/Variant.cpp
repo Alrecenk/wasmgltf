@@ -927,9 +927,9 @@ std::pair<Variant,int> Variant::parseJSONValue(const std::string& json, int valu
             if(!got_value && value_start != c){ // must be a number if nothing else
                 string value = json.substr(value_start, c - value_start);
                 if(value == "true"){
-                    var = Variant(true);
+                    var = Variant((int)1);
                 }else if(value == "false"){
-                    var = Variant(false);
+                    var = Variant((int)0);
                 }else if(value.find('.') == string::npos){
                     int i = std::stoi(value);
                     var = Variant(i);

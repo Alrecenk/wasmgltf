@@ -15,6 +15,7 @@
 using std::string;
 using std::vector;
 using std::map;
+using glm::vec2;
 using glm::vec3;
 using glm::vec4;
 using glm::mat4;
@@ -138,11 +139,19 @@ void GLTF::setModel(const byte* data, int data_length){
                 printf("Bin chunk found!\n");
                 printf("Bin size: %d \n", bin_length);
                 bin = Variant(data+bin_chunk_start+8, bin_length);
+
+                int num_materials = json["materials"].getArrayLength();
+                for(int k=0;k<num_materials;k++){
+                    addMaterial(k, json, bin);
+                }
+
                 int default_scene = 0 ;
                 if(json["scene"].defined()){
                     default_scene = json["scene"].getInt() ;
                 }
                 addScene(new_vertices, new_triangles, default_scene, json, bin) ;
+
+                
 
             }else{
                 printf("Bin chunk not found after json !(got %d)\n", second_chunk_type);
@@ -244,17 +253,29 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
     bool has_normals = false;
     GLTF::Accessor na ;
     float* normal_data = nullptr; // still held by Variant, not a memory leak
-    
-
     if(primitive["attributes"]["NORMAL"].defined()){
         na = GLTF::access(primitive["attributes"]["NORMAL"].getInt(), json, bin);
         if(na.type == "VEC3" && na.component_type == 5126){
             has_normals = true;
             normal_data = na.data.getFloatArray();
+            printf("Got normals!\n");
         }else{
             printf("Normals are a weird type, skipping %s : %d \n" , na.type.c_str(), na.component_type);
         }
-
+    }
+    
+    bool has_texcoords = false;
+    GLTF::Accessor ta ;
+    float* texcoords_data = nullptr; // still held by Variant, not a memory leak
+    if(primitive["attributes"]["TEXCOORD_0"].defined()){
+        ta = GLTF::access(primitive["attributes"]["TEXCOORD_0"].getInt(), json, bin);
+        if(ta.type == "VEC2" && ta.component_type == 5126){
+            has_texcoords = true;
+            texcoords_data = na.data.getFloatArray();
+            printf("Got Texture coordinates!\n");
+        }else{
+            printf("Texture coordinates are a weird type, skipping %s : %d \n" , ta.type.c_str(), ta.component_type);
+        }
     }
 
 
@@ -318,18 +339,92 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
             vec4 n_global = transform*vec4(n_local,0);
             v.normal = vec3(n_global);
         }
+        if(has_texcoords){
+            v.tex_coord = vec2(texcoords_data[2*k], texcoords_data[2*k+1]) ;
+        }
         vertices.push_back(v);
     }
 
+    int material = 0 ;
+    if(primitive["material"].defined()){
+        printf("Got material!\n");
+        material = primitive["material"].getInt();
+    }
     for(int k=0;k<num_indices;k+=3){
         //printf("Triangle: %d , %d , %d\n", (int)index_data[k]+start_vertices, (int)index_data[k+1]+start_vertices,(int)index_data[k+2]+start_vertices);
         triangles.push_back({(int)index_data[k]+start_vertices,
                         (int)index_data[k+1]+start_vertices, 
-                        (int)index_data[k+2]+start_vertices});
+                        (int)index_data[k+2]+start_vertices,
+                        material});
     }
 
     free(index_data);
 }
+
+void GLTF::addMaterial(int material_id, const Variant& json, const Variant& bin){
+    if(this->materials.find(material_id) == this->materials.end()){
+        printf("Adding material!\n");
+        Variant m_json = json["materials"][material_id];
+        m_json.printFormatted();
+        Material mat ;
+        if(m_json["name"].defined()){
+            printf("Got name!\n");
+            mat.name = m_json["name"].getString();
+        }
+        // Doublesided can appear in two different places, prefer deeper one
+        if(m_json["pbrMetallicRoughness"]["doubleSided"].defined()){
+            printf("Got double sided!\n");
+            mat.double_sided = m_json["pbrMetallicRoughness"]["doubleSided"].getInt() > 0;
+        }else if(m_json["doubleSided"].defined()){
+            printf("Got double sided!\n");
+            mat.double_sided = m_json["doubleSided"].getInt() > 0;
+        }
+        if(m_json["pbrMetallicRoughness"]["metallicFactor"].defined()){
+            printf("Got metallic!\n");
+            mat.metallic = m_json["pbrMetallicRoughness"]["metallicFactor"].getNumberAsFloat();
+        }
+
+        if(m_json["pbrMetallicRoughness"]["roughnessFactor"].defined()){
+            printf("Got roughness!\n");
+            mat.roughness = m_json["pbrMetallicRoughness"]["roughnessFactor"].getNumberAsFloat();
+        }
+
+        if(m_json["pbrMetallicRoughness"]["baseColorFactor"].defined()){
+            printf("Got base color!\n");
+            Variant c = m_json["pbrMetallicRoughness"]["baseColorFactor"] ;
+            mat.color = vec3(c[0].getNumberAsFloat(), c[1].getNumberAsFloat(), c[2].getNumberAsFloat());
+        }
+
+        if(m_json["pbrMetallicRoughness"]["baseColorTexture"]["index"].defined()){
+            printf("Got color texture index!\n");
+            mat.image = m_json["pbrMetallicRoughness"]["baseColorTexture"]["index"].getInt();
+            addImage(mat.image, json, bin);
+        }
+
+        /* TODO
+        extensions:{ 
+            KHR_materials_pbrSpecularGlossiness:{ 
+                diffuseFactor:[0.612066,0.425905,0.022013,1.000000], 
+                glossinessFactor:0.486275, 
+                specularFactor:[0.028991,0.019918,0.000992] 
+            } 
+        } 
+        */
+
+        this->materials[material_id] = mat ;
+    }
+}
+
+void GLTF::addImage(int image_id, const Variant& json, const Variant& bin){
+    printf("Adding image %d!\n", image_id);
+    if(this->images.find(image_id) == this->images.end()){
+
+
+    //TODO
+
+    }
+}
+
 
 void GLTF::addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
                    int mesh_id, const glm::mat4& transform, const Variant& json, const Variant& bin){
