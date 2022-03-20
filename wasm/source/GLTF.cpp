@@ -9,6 +9,9 @@
 #include <stdlib.h>
 #include <queue>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 using std::string;
 using std::vector;
 using std::map;
@@ -22,8 +25,6 @@ using std::queue;
 
 // Constructor
 GLTF::GLTF(){
-    this->num_vertices = 0;
-    this->num_triangles = 0;
     this->color_changed = false;
     this->vertices_changed = false;
 }
@@ -41,11 +42,11 @@ Variant GLTF::getFloatBuffer(std::vector<glm::vec3>& point_list){
     // Maybe here should be an array constructor that just takes type and size
     // and then the get array provides a shallow pointer that can't be freed?
     buffer.type_ = Variant::FLOAT_ARRAY;
-    buffer.ptr = (byte*)malloc(4 + this->num_triangles * 9 * sizeof(float));
+    buffer.ptr = (byte*)malloc(4 + this->triangles.size() * 9 * sizeof(float));
     
-    *((int*)buffer.ptr) = this->num_triangles * 9 ;// number of floats in array
+    *((int*)buffer.ptr) = this->triangles.size() * 9 ;// number of floats in array
     float* buffer_array =  (float*)(buffer.ptr+4) ; // pointer to start of float array
-    for(int k=0;k<this->num_triangles;k++){
+    for(int k=0;k<this->triangles.size();k++){
         Triangle& t = this->triangles[k];
         int k9 = k*9; // does this really matter?
         // A
@@ -74,22 +75,36 @@ Variant GLTF::getFloatBuffer(std::vector<glm::vec3>& point_list){
 // result["vertices"] = number of vertices
 Variant GLTF::getChangedBuffers(){
     std::map<string, Variant> buffers;
+
     if(vertices_changed){
-        buffers["position"] = this->getFloatBuffer(this->vertices);
-        buffers["normal"] = this->getFloatBuffer(this->normals);
+        vector<vec3> position ;
+        vector<vec3> normal ;
+        for(const auto& v : this->vertices){
+            position.push_back(v.position);
+            normal.push_back(v.normal);
+        }
+        
+
+        buffers["position"] = this->getFloatBuffer(position);
+        buffers["normal"] = this->getFloatBuffer(normal);
         vertices_changed = false;
     }
     if(color_changed){
-        buffers["color"] = this->getFloatBuffer(this->colors);
+        vector<vec3> color ;
+        for(const auto& v : this->vertices){
+            color.push_back(v.color_mult);
+        }
+
+        buffers["color"] = this->getFloatBuffer(color);
         color_changed = false;
     }
-    buffers["vertices"] = Variant(num_triangles * 3);
+    buffers["vertices"] = Variant((int)(this->triangles.size() * 3));
     return Variant(buffers);
 }
 
 void GLTF::setModel(const byte* data, int data_length){
     
-    vector<vec3> new_vertices;
+    vector<Vertex> new_vertices;
     vector<Triangle> new_triangles;
 
     printf ("num bytes: %d \n", data_length);
@@ -204,7 +219,7 @@ GLTF::Accessor GLTF::access(int accessor_id, const Variant& json, const Variant&
 
 
 //TODO consider using quaternion down the hierarchy recursion instead of mat4 for better precision/speed.
-void GLTF::addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
                         const Variant& primitive, const glm::mat4& transform, const Variant& json, const Variant& bin){
     //printf("Adding primitive:\n");
     primitive.printFormatted();
@@ -267,7 +282,9 @@ void GLTF::addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>&
                     vec3 v_local = vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]) ;
                     vec4 v_global = transform*vec4(v_local,1);
                     //printf("global: %f , %f , %f\n", v_global.x, v_global.y, v_global.z);
-                    vertices.push_back(vec3(v_global));
+                    Vertex v ;
+                    v.position = vec3(v_global);
+                    vertices.push_back(v);
                 }
 
                 for(int k=0;k<num_indices;k+=3){
@@ -291,7 +308,9 @@ void GLTF::addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>&
             vec3 v_local = vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]) ;
             vec4 v_global = transform*vec4(v_local,1);
             //printf("global: %f , %f , %f\n", v_global.x, v_global.y, v_global.z);
-            vertices.push_back(vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]));
+            Vertex v ;
+            v.position = vec3(v_global);
+            vertices.push_back(v);
             if(k%3 == 2){
                 triangles.push_back({k-2+start_vertices,
                                    k-1+start_vertices, 
@@ -301,7 +320,7 @@ void GLTF::addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>&
     }
 }
 
-void GLTF::addMesh(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+void GLTF::addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
                    int mesh_id, const glm::mat4& transform, const Variant& json, const Variant& bin){
     printf("Adding mesh %d!\n", mesh_id);
 
@@ -311,7 +330,7 @@ void GLTF::addMesh(std::vector<glm::vec3>& vertices, std::vector<Triangle>& tria
     }
 }
 
-void GLTF::addNode(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
                    int node_id, const glm::mat4& transform, const Variant& json, const Variant& bin){
     printf("Adding node %d!\n", node_id);
     auto node = json["nodes"][node_id];
@@ -380,7 +399,7 @@ void GLTF::addNode(std::vector<glm::vec3>& vertices, std::vector<Triangle>& tria
     }
 }
 
-void GLTF::addScene(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+void GLTF::addScene(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
                     int scene_id, const Variant& json, const Variant& bin){
     printf("Adding scene %d!\n", scene_id);
     auto nodes = json["scenes"][scene_id]["nodes"];
@@ -393,63 +412,42 @@ void GLTF::addScene(std::vector<glm::vec3>& vertices, std::vector<Triangle>& tri
 
 
 // Compacts the given vertices and sets the model to them
-void GLTF::setModel(const std::vector<vec3>& vertices, const std::vector<Triangle>& triangles){
-
-    vector<vec3> new_vertices;
-    vector<Triangle> new_triangles;
-
-    map<int, int> unique_vertices ; // map hashes to new vertex indices
-
-    for(int k=0;k<vertices.size();k++){
-        int hash = hashVertex(vertices[k]);
-        if(unique_vertices.find(hash) == unique_vertices.end()){
-            unique_vertices[hash] = new_vertices.size() ;
-            new_vertices.push_back(vertices[k]);
-        }
-    }
-    for(int k=0;k<triangles.size();k++){
-        new_triangles.push_back(Triangle{
-            unique_vertices[hashVertex(vertices[triangles[k].A])],
-            unique_vertices[hashVertex(vertices[triangles[k].B])],
-            unique_vertices[hashVertex(vertices[triangles[k].C])]
-        });
-    }
-
+void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Triangle>& triangles){
     this->vertices_changed = true;
     this->color_changed = true;
 
-    this->num_vertices = new_vertices.size();
-    this->num_triangles = new_triangles.size();
-    this->vertices = new_vertices;
-    this->triangles = new_triangles;
+    this->vertices = vertices;
+    this->triangles = triangles;
 
-     // Set all colors to white and Initialize Normals
-    
-    this->colors = vector<glm::vec3>();
-    this->normals = vector<glm::vec3>();
-    for(int k=0; k<this->num_vertices; k++){
-        this->colors.push_back(vec3{1.0f, 1.0f, 1.0f}) ;
-        this->normals.push_back(vec3{0.0f, 0.0f, 0.0f});
+    vector<bool> unset_normal ;
+    for(int k=0; k<vertices.size(); k++){
+        unset_normal.push_back(glm::length(vertices[k].normal) < 0.01);
     }
-    
-    // get normals by summing up touching triangles
-    for(int k=0; k < this->num_triangles; k++){
+
+    // set undefined normals by summing up touching triangles
+    for(int k=0; k < this->triangles.size(); k++){
         Triangle& t = this->triangles[k] ;
         vec3 n = this->getNormal(t);
-        this->normals[t.A] += n ;
-        this->normals[t.B] += n ;
-        this->normals[t.C] += n ;
+        if(unset_normal[t.A]){
+            this->vertices[t.A].normal += n ;
+        }
+        if(unset_normal[t.B]){
+            this->vertices[t.B].normal += n ;
+        }
+        if(unset_normal[t.C]){
+            this->vertices[t.C].normal += n ;
+        }
     }
     //normalize normals
-    for(int k=0;k<this->num_vertices;k++){
-        this->normals[k] = glm::normalize(this->normals[k]) ;
+    for(int k=0;k<this->vertices.size();k++){
+        this->vertices[k].normal = glm::normalize(this->vertices[k].normal) ;
     }
     
     //update AABB
     this->min = {9999999,9999999,9999999};
     this->max = {-9999999,-9999999,-9999999};
-    for(int k=0;k<this->num_vertices; k++){
-        auto &v = this->vertices[k];
+    for(int k=0;k<this->vertices.size(); k++){
+        auto &v = this->vertices[k].position;
         if(v.x < this->min.x)this->min.x = v.x;
         if(v.y < this->min.y)this->min.y = v.y;
         if(v.z < this->min.z)this->min.z = v.z;
@@ -465,8 +463,8 @@ int GLTF::hashVertex(vec3 v){
 }
 
 vec3 GLTF::getNormal(Triangle t){
-    vec3 AB = this->vertices[t.B] - this->vertices[t.A];
-    vec3 AC = this->vertices[t.C] - this->vertices[t.A];
+    vec3 AB = this->vertices[t.B].position - this->vertices[t.A].position;
+    vec3 AC = this->vertices[t.C].position - this->vertices[t.A].position;
     return glm::normalize(glm::cross(AB,AC));
 }
 
@@ -475,10 +473,10 @@ vec3 GLTF::getNormal(Triangle t){
 // return negative if no collision
 float EPSILON = 0.00001;
 float GLTF::trace(Triangle tri, const vec3 &p, const vec3 &v){
-    vector<vec3>& x = this->vertices ;
+    vector<Vertex>& x = this->vertices ;
     //TODO use the vector library
-    vec3 AB = {x[tri.B].x-x[tri.A].x,x[tri.B].y-x[tri.A].y,x[tri.B].z-x[tri.A].z};
-    vec3 AC = {x[tri.C].x-x[tri.A].x,x[tri.C].y-x[tri.A].y,x[tri.C].z-x[tri.A].z};
+    vec3 AB = {x[tri.B].position.x-x[tri.A].position.x,x[tri.B].position.y-x[tri.A].position.y,x[tri.B].position.z-x[tri.A].position.z};
+    vec3 AC = {x[tri.C].position.x-x[tri.A].position.x,x[tri.C].position.y-x[tri.A].position.y,x[tri.C].position.z-x[tri.A].position.z};
     // h = v x AC
     vec3 h = {v.y*AC.z - v.z*AC.y,
               v.z*AC.x - v.x*AC.z,
@@ -489,7 +487,7 @@ float GLTF::trace(Triangle tri, const vec3 &p, const vec3 &v){
       return -1;
 	float f = 1.0 / a;
     // s = p - A
-    vec3 s = {p.x-x[tri.A].x,p.y-x[tri.A].y,p.z-x[tri.A].z};
+    vec3 s = {p.x-x[tri.A].position.x,p.y-x[tri.A].position.y,p.z-x[tri.A].position.z};
     // u = s.h * f
     float u = (s.x*h.x+s.y*h.y+s.z*h.z) * f;
 	if (u < 0 || u > 1)
@@ -516,7 +514,7 @@ float GLTF::trace(Triangle tri, const vec3 &p, const vec3 &v){
 // return negative if no collision
 float GLTF::rayTrace(const vec3 &p, const vec3 &v){
     float min_t = std::numeric_limits<float>::max() ;
-    for(int k=0;k<this->num_triangles;k++){
+    for(int k=0;k<this->triangles.size();k++){
         float t = this->trace(this->triangles[k],p,v);
         if(t > 0 && t < min_t){
             min_t = t ;
@@ -530,13 +528,13 @@ float GLTF::rayTrace(const vec3 &p, const vec3 &v){
 // Changes all vertices within radius of origin to the given color
 void GLTF::paint(const vec3 &center, const float &radius, const vec3 &color){
     float r2 = radius*radius;
-    for(int k=0; k<this->num_vertices; k++){
-        vec3 d = {this->vertices[k].x-center.x,this->vertices[k].y-center.y,this->vertices[k].z-center.z};
+    for(int k=0; k<this->vertices.size(); k++){
+        vec3 d = {this->vertices[k].position.x-center.x,this->vertices[k].position.y-center.y,this->vertices[k].position.z-center.z};
         float d2 = d.x*d.x+d.y*d.y+d.z*d.z;
         if(d2<r2){
             // if actually changing
-            if(this->colors[k].x != color.x || this->colors[k].y != color.y || this->colors[k].z != color.z ){
-                this->colors[k] = color;
+            if(this->vertices[k].color_mult.x != color.x || this->vertices[k].color_mult.y != color.y || this->vertices[k].color_mult.z != color.z ){
+                this->vertices[k].color_mult = color;
                 this->color_changed = true;
             }
         }

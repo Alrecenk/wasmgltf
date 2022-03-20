@@ -20,21 +20,44 @@ class GLTF{
             Variant data;
         };
 
+        struct Vertex{
+            glm::vec3 position = {0, 0, 0};
+            glm::vec3 normal = {0, 0, 0};
+            glm::vec2 tex_coord = {0, 0};
+            glm::vec3 color_mult = {1.0f, 1.0f, 1.0f};
+        };
+
         struct Triangle{
             int A;
             int B;
             int C;
+            int material = -1;
         };
+
+        struct Material{
+            glm::vec3 color = {1.0f, 1.0f, 1.0f};
+            float metallic = 1.0f;
+            float roughness = 1.0f;
+            bool texture = false; 
+            byte* image = nullptr;
+            int width = 0 ;
+            int height = 0 ;
+            int channels = 0 ;
+        };
+            
+
 
         Variant json;
         Variant bin;
 
 
-        int num_vertices;
-        int num_triangles;
-        std::vector<glm::vec3> vertices ; 
-        std::vector<glm::vec3> colors; 
-        std::vector<glm::vec3> normals;
+        //int num_vertices;
+        //int num_triangles;
+        //std::vector<glm::vec3> vertices ; 
+        //std::vector<glm::vec3> colors; 
+       //std::vector<glm::vec3> normals;
+
+        std::vector<Vertex> vertices ;
         std::vector<Triangle> triangles ; 
         glm::vec3 min; // minimum values in each axis part of AABB
         glm::vec3 max; // maximum values in each axis part of AABB
@@ -57,24 +80,24 @@ class GLTF{
         void setModel(const byte* data, int data_length);
 
         // Compacts the given vertices and sets the model to them
-        void setModel(const std::vector<glm::vec3>& vertices, const std::vector<Triangle>& triangles);
+        void setModel(const std::vector<Vertex>& vertices, const std::vector<Triangle>& triangles);
 
-        static void addPrimitive(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+        static void addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
             const Variant& primitive, const glm::mat4& transform, const Variant& json, const Variant& bin);
 
-        static void addMesh(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+        static void addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
             int mesh_id, const glm::mat4& transform, const Variant& json, const Variant& bin);
 
-        static void addNode(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+        static void addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
             int node_id, const glm::mat4& transform, const Variant& json, const Variant& bin);
 
-        static void addScene(std::vector<glm::vec3>& vertices, std::vector<Triangle>& triangles,
+        static void addScene(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
             int scene_id, const Variant& json, const Variant& bin);
 
         static Accessor access(int accessor_id, const Variant& json, const Variant& bin);
 
 
-        // hashes a vertex to allow duplicates ot be detected and merged
+        // hashes a vertex to allow duplicates to be detected
         int hashVertex(glm::vec3 v);
 
         // returns the model with {vertices:float_array vertices, faces:(int_array or short_array) triangles}
