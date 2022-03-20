@@ -35,16 +35,22 @@ class GLTF{
         };
 
         struct Material{
+            std::string name ="";
+            bool double_sided = false;
             glm::vec3 color = {1.0f, 1.0f, 1.0f};
             float metallic = 1.0f;
             float roughness = 1.0f;
             bool texture = false; 
-            byte* image = nullptr;
+            int image ;
+        };
+            
+        struct Image{
+            string name = "";
             int width = 0 ;
             int height = 0 ;
             int channels = 0 ;
+            Variant image; // byte array
         };
-            
 
 
         Variant json;
@@ -59,6 +65,8 @@ class GLTF{
 
         std::vector<Vertex> vertices ;
         std::vector<Triangle> triangles ; 
+        std::map<int,Material> materials;
+        std::map<int,Image> images;
         glm::vec3 min; // minimum values in each axis part of AABB
         glm::vec3 max; // maximum values in each axis part of AABB
         bool vertices_changed = false;
@@ -95,6 +103,10 @@ class GLTF{
             int scene_id, const Variant& json, const Variant& bin);
 
         static Accessor access(int accessor_id, const Variant& json, const Variant& bin);
+
+        void addMaterial(int material_id, const Variant& json, const Variant& bin);
+
+        void addImage(int image_id, const Variant& json, const Variant& bin);
 
 
         // hashes a vertex to allow duplicates to be detected
