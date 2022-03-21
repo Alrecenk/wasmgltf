@@ -115,11 +115,14 @@ class Renderer{
         this.gl.enableVertexAttribArray(this.shaderProgram.vertexPositionAttribute);
         this.shaderProgram.vertexNormalAttribute = this.gl.getAttribLocation(this.shaderProgram, "aNormal");
         this.gl.enableVertexAttribArray(this.shaderProgram.vertexNormalAttribute);
+        this.shaderProgram.vertexTexcoordAttribute = this.gl.getAttribLocation(this.shaderProgram, "aTexcoord");
+        this.gl.enableVertexAttribArray(this.shaderProgram.vertexTexcoordAttribute);
         this.shaderProgram.vertexColorAttribute = this.gl.getAttribLocation(this.shaderProgram, "aVertexColor");
         this.gl.enableVertexAttribArray(this.shaderProgram.vertexColorAttribute);
         this.shaderProgram.pMatrixUniform = this.gl.getUniformLocation(this.shaderProgram, "uPMatrix");
         this.shaderProgram.mvMatrixUniform = this.gl.getUniformLocation(this.shaderProgram, "uMVMatrix");
         this.shaderProgram.light_point = this.gl.getUniformLocation(this.shaderProgram, "light_point");
+        this.shaderProgram.texture = this.gl.getUniformLocation(this.shaderProgram, "u_texture");
     }
 
     // Push current matrices to the shader
@@ -292,6 +295,7 @@ class Renderer{
             this.buffers[id].position = this.gl.createBuffer();
             this.buffers[id].color = this.gl.createBuffer();
             this.buffers[id].normal = this.gl.createBuffer();
+            this.buffers[id].tex_coord = this.gl.createBuffer();
         }
         let num_vertices = buffer_data.vertices ;
         if(num_vertices == 0){
@@ -319,6 +323,43 @@ class Renderer{
             this.buffers[id].normal.numItems = num_vertices;
         }
 
+        if(buffer_data.tex_coord){
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers[id].tex_coord );
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, buffer_data.tex_coord, this.gl.STATIC_DRAW);
+            this.buffers[id].tex_coord.itemSize = 2;
+            this.buffers[id].tex_coord.numItems = num_vertices;
+            console.log("Got texture coords:\n");
+            //console.log(buffer_data.tex_coord);
+        }
+
+        if(buffer_data.materials){
+            console.log("Javascript render got materials:\n");
+            let mat = buffer_data.materials[0] ;
+            console.log(mat);
+            if(mat.has_texture == 1){
+                console.log("got texture image!");
+                var texture = this.gl.createTexture();
+                this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+                this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+                this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+                this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+                this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+
+                
+                console.log(mat.image_width +", " + mat.image_height);
+                this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGB, 
+                    mat.image_width, mat.image_height, 
+                    0, this.gl.RGB, this.gl.UNSIGNED_BYTE, new Uint8Array(mat.image_data));
+
+                //console.log(buffer_data.materials);
+                let texture_id = 2 ;
+                this.gl.activeTexture(this.gl.TEXTURE0 + texture_id);
+                this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+                this.gl.uniform1i(this.shaderProgram.texture, texture_id);
+            }
+
+        }
+
         this.buffers[id].ready = true;
     }
 
@@ -327,10 +368,13 @@ class Renderer{
             let position_buffer = buffer.position;
             let color_buffer = buffer.color;
             let normal_buffer = buffer.normal;
+            let tex_coord_buffer = buffer.tex_coord;
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, position_buffer);
             this.gl.vertexAttribPointer(this.shaderProgram.vertexPositionAttribute, position_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, normal_buffer);
             this.gl.vertexAttribPointer(this.shaderProgram.vertexNormalAttribute, normal_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, tex_coord_buffer);
+            this.gl.vertexAttribPointer(this.shaderProgram.vertexTexcoordAttribute, tex_coord_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, color_buffer);
             this.gl.vertexAttribPointer(this.shaderProgram.vertexColorAttribute, color_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
             this.gl.drawArrays(this.gl.TRIANGLES, 0, position_buffer.numItems);

@@ -71,6 +71,7 @@ class GLTF{
         glm::vec3 max; // maximum values in each axis part of AABB
         bool vertices_changed = false;
         bool color_changed = false;
+        bool material_changed = false;
 
         // Constructor
         GLTF();
@@ -125,6 +126,7 @@ class GLTF{
     private:
         // Performs the duplicate work for the various get vertex buffer functions
         Variant getFloatBuffer(std::vector<glm::vec3>& ptr);
+        Variant getFloatBuffer(std::vector<glm::vec2>& ptr);
 
         // returns the normal of a triangle
         glm::vec3 getNormal(Triangle t);

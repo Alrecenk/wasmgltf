@@ -42,8 +42,10 @@ body {
     in vec3 v_color;
 	in vec3 v_position;
 	in vec3 v_normal;
+    in vec2 v_texcoord;
 	
 	uniform vec3 light_point;
+    uniform sampler2D u_texture;
 	
 	out vec4 frag_color;
 
@@ -58,7 +60,16 @@ body {
 		float direct = lightFrom(light_point) ;
 		float indirect = 1.;
 		float l = 0.3*indirect + 0.7 * direct ; // Add some ambient light
-		frag_color = vec4(v_color*l ,1.0);	// Scale the color by the lighting
+        if(length(v_texcoord) > 0.0 ){
+            vec4 t_color = texture(u_texture, v_texcoord);
+            frag_color = vec4(t_color.r*l,t_color.g*l,t_color.b*l , 1.0);
+            //frag_color = vec4(1.0,0.0,0.0,1.0);
+            //frag_color = texture(u_texture, v_texcoord);
+
+
+        }else{
+		    frag_color = vec4(v_color*l ,1.0);	// Scale the color by the lighting;
+        }
 		
     }
 </script>
@@ -68,6 +79,7 @@ body {
 	in vec3 aVertexPosition;
     in vec3 aVertexColor;
 	in vec3 aNormal;
+    in vec2 aTexcoord;
 
     uniform mat4 uMVMatrix;
     uniform mat4 uPMatrix;
@@ -75,12 +87,14 @@ body {
     out vec3 v_color;
 	out vec3 v_position;
 	out vec3 v_normal;
+    out vec2 v_texcoord;
 
     void main(void) {
         gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
         v_color = aVertexColor;
 		v_position = aVertexPosition; 
 		v_normal = aNormal;
+        v_texcoord = aTexcoord;
     }
 </script>
 
