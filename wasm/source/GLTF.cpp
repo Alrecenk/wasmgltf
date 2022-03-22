@@ -8,6 +8,7 @@
 #include <limits>
 #include <stdlib.h>
 #include <queue>
+#include <sstream>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -69,6 +70,38 @@ Variant GLTF::getFloatBuffer(std::vector<glm::vec3>& point_list){
     return buffer ;
 }
 
+// Returns a Variant of 3 vec2's'for each each triangle dereferenced
+// Used to get arrays for displaying with a simple shader
+Variant GLTF::getFloatBuffer(std::vector<glm::vec2>& point_list){
+    Variant buffer;
+    //TODO this access pattern prevents these Variant members from being private 
+    // but using the constructor forces a copy that isn't necesarry 
+    // Maybe here should be an array constructor that just takes type and size
+    // and then the get array provides a shallow pointer that can't be freed?
+    buffer.type_ = Variant::FLOAT_ARRAY;
+    buffer.ptr = (byte*)malloc(4 + this->triangles.size() * 6 * sizeof(float));
+    
+    *((int*)buffer.ptr) = this->triangles.size() * 9 ;// number of floats in array
+    float* buffer_array =  (float*)(buffer.ptr+4) ; // pointer to start of float array
+    for(int k=0;k<this->triangles.size();k++){
+        Triangle& t = this->triangles[k];
+        int k6 = k*6; // does this really matter?
+        // A
+        vec2& A = point_list[t.A];
+        buffer_array[k6] = A.x;
+        buffer_array[k6+1] = A.y;
+        // B
+        vec2& B = point_list[t.B];
+        buffer_array[k6+2] = B.x;
+        buffer_array[k6+3] = B.y;
+        // C
+        vec2& C = point_list[t.C];
+        buffer_array[k6+4] = C.x;
+        buffer_array[k6+5] = C.y;
+    }
+    return buffer ;
+}
+
 // Returns a Variant of openGL triangle buffers for displaying this mesh_ in world_ space
 // result["position"] = float array of triangle vertices in order (Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz)
 // result["normal] = same format for vertex normals
@@ -80,14 +113,17 @@ Variant GLTF::getChangedBuffers(){
     if(vertices_changed){
         vector<vec3> position ;
         vector<vec3> normal ;
+        vector<vec2> tex_coord;
         for(const auto& v : this->vertices){
             position.push_back(v.position);
             normal.push_back(v.normal);
+            tex_coord.push_back(v.tex_coord);
         }
         
 
         buffers["position"] = this->getFloatBuffer(position);
         buffers["normal"] = this->getFloatBuffer(normal);
+        buffers["tex_coord"] = this->getFloatBuffer(tex_coord);
         vertices_changed = false;
     }
     if(color_changed){
@@ -100,6 +136,35 @@ Variant GLTF::getChangedBuffers(){
         color_changed = false;
     }
     buffers["vertices"] = Variant((int)(this->triangles.size() * 3));
+
+    if(material_changed){
+        map<string,Variant> materials_map ; // TODO JS deserializer doesn't support int objects
+        for(auto const & [material_id, mat]: this->materials){
+            map<string,Variant> mat_map;
+            mat_map["color"] = Variant(mat.color);
+            mat_map["metallic"] = Variant(mat.roughness);
+            mat_map["roughness"] = Variant(mat.roughness);
+            mat_map["name"] = Variant(mat.name) ;
+            mat_map["double_sided"] = Variant(mat.double_sided ? 1 : 0);
+            mat_map["has_texture"] = Variant(mat.texture ? 1: 0);
+            if(mat.texture){
+                const Image& img = this->images[mat.image];
+                mat_map["image_name"] = Variant(img.name);
+                mat_map["image_width"] = Variant(img.width) ;
+                mat_map["image_height"] = Variant(img.height) ;
+                mat_map["image_channels"] = Variant(img.channels);
+                mat_map["image_data"] = img.data.clone();
+            }
+            std::stringstream ss;
+            ss << material_id;
+            string s_id = ss.str();
+            materials_map[s_id] = Variant(mat_map) ;
+        }
+        material_changed = false;
+        buffers["materials"] = Variant(materials_map);
+    }
+
+
     return Variant(buffers);
 }
 
@@ -425,6 +490,7 @@ void GLTF::addMaterial(int material_id, const Variant& json, const Variant& bin)
 
         if(m_json["pbrMetallicRoughness"]["baseColorTexture"]["index"].defined()){
             //printf("Got color texture index!\n");
+            mat.texture = true;
             mat.image = m_json["pbrMetallicRoughness"]["baseColorTexture"]["index"].getInt();
             addImage(mat.image, json, bin);
         }
@@ -440,6 +506,7 @@ void GLTF::addMaterial(int material_id, const Variant& json, const Variant& bin)
         */
 
         this->materials[material_id] = mat ;
+        this->material_changed = true;
     }
 }
 
