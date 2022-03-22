@@ -6,12 +6,10 @@ class Renderer{
     camera_pos;
     mvMatrix = mat4.create(); // Model view matrix
     pMatrix = mat4.create();  // Perspective matrix
+    bgColor = [220,220,220];
 
-    meshes_per_batch = 200; // Number of meshes to put in each openGL buffer
     buffers = {} ; // current active mesh buffers maps id to object with position,color, and normal
-    buffer_batches = []; // array of maps from index to mesh buffer
-    changed_buffer = {}; // which batched buffers have changed sincde the last frame
-
+ 
     start_camera ; // A clone of the camera mvMatrix made when a camera operation starts
     action_focus = [0,0,0]; // the focal point of the current camera operation
     start_pointer ; // Mouse or touch pointers saved whena camera operation starts
@@ -121,8 +119,9 @@ class Renderer{
         this.gl.enableVertexAttribArray(this.shaderProgram.vertexColorAttribute);
         this.shaderProgram.pMatrixUniform = this.gl.getUniformLocation(this.shaderProgram, "uPMatrix");
         this.shaderProgram.mvMatrixUniform = this.gl.getUniformLocation(this.shaderProgram, "uMVMatrix");
-        this.shaderProgram.light_point = this.gl.getUniformLocation(this.shaderProgram, "light_point");
+        this.shaderProgram.light_point = this.gl.getUniformLocation(this.shaderProgram, "u_light_point");
         this.shaderProgram.texture = this.gl.getUniformLocation(this.shaderProgram, "u_texture");
+        this.shaderProgram.has_texture = this.gl.getUniformLocation(this.shaderProgram, "u_has_texture");
     }
 
     // Push current matrices to the shader
@@ -134,7 +133,9 @@ class Renderer{
     // Clear the viewport
     clearViewport(){
         this.gl.viewport(0, 0, this.gl.viewportWidth, this.gl.viewportHeight);
+        this.gl.clearColor(this.bgColor[0]/255.0, this.bgColor[1]/255.0, this.bgColor[2]/255.0, 1.0);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+        
     }
 
     // Returns the point at which the ray through the centero fthe screen intersects the ground
@@ -233,10 +234,6 @@ class Renderer{
     drawMeshes(){
         this.setMatrixUniforms();
         for(let id in this.buffers){
-            if(this.changed_buffer[id]){
-                this.prepareBatchBuffer(id);
-                this.changed_buffer[id] = false;
-            }
             this.drawModel(this.buffers[id]);
         }
     }
@@ -287,8 +284,12 @@ class Renderer{
         return {p:pos,v:v};
     }
 
+    clearBuffers(){
+        this.buffers = {} ;
+        //TODO delete textures?
+    }
+
     // Binds a webGl buffer to the buffer data provided and puts it in buffers[id]
-    //TODO make more general for different shaders
     prepareBuffer(id, buffer_data){
         if(!(id in this.buffers)){ // New buffer
             this.buffers[id] = {};
@@ -296,6 +297,7 @@ class Renderer{
             this.buffers[id].color = this.gl.createBuffer();
             this.buffers[id].normal = this.gl.createBuffer();
             this.buffers[id].tex_coord = this.gl.createBuffer();
+            this.buffers[id].texture_id = -1;
         }
         let num_vertices = buffer_data.vertices ;
         if(num_vertices == 0){
@@ -328,34 +330,45 @@ class Renderer{
             this.gl.bufferData(this.gl.ARRAY_BUFFER, buffer_data.tex_coord, this.gl.STATIC_DRAW);
             this.buffers[id].tex_coord.itemSize = 2;
             this.buffers[id].tex_coord.numItems = num_vertices;
-            console.log("Got texture coords:\n");
+            //console.log("Got texture coords:\n");
             //console.log(buffer_data.tex_coord);
         }
 
-        if(buffer_data.materials){
-            console.log("Javascript render got materials:\n");
-            let mat = buffer_data.materials[0] ;
-            console.log(mat);
+        if(buffer_data.material){
+            //console.log("Javascript preparebuffer got material:\n");
+            let mat = buffer_data.material ;
+            //console.log(mat);
             if(mat.has_texture == 1){
-                console.log("got texture image!");
-                var texture = this.gl.createTexture();
-                this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+                //console.log("got texture image!");
+                this.buffers[id].texture = this.gl.createTexture();
+                this.gl.bindTexture(this.gl.TEXTURE_2D, this.buffers[id].texture);
                 this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
                 this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
                 this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
                 this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
 
                 
-                console.log(mat.image_width +", " + mat.image_height);
-                this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGB, 
-                    mat.image_width, mat.image_height, 
-                    0, this.gl.RGB, this.gl.UNSIGNED_BYTE, new Uint8Array(mat.image_data));
+                console.log(mat.image_width +", " + mat.image_height +", " + mat.image_channels);
+                if(mat.image_channels == 3){
+                    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGB, 
+                        mat.image_width, mat.image_height, 
+                        0, this.gl.RGB, this.gl.UNSIGNED_BYTE, new Uint8Array(mat.image_data));
+                }else if(mat.image_channels == 4){
+                    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, 
+                        mat.image_width, mat.image_height, 
+                        0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, new Uint8Array(mat.image_data));
+                }
+
 
                 //console.log(buffer_data.materials);
-                let texture_id = 2 ;
-                this.gl.activeTexture(this.gl.TEXTURE0 + texture_id);
-                this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
-                this.gl.uniform1i(this.shaderProgram.texture, texture_id);
+                this.buffers[id].texture_id = parseInt(id) +2; // TODO would conflict if more than one gltf at a time
+
+                //console.log("binding Texture id: " + this.buffers[id].texture_id + " \n");
+                //console.log(this.buffers[id].texture);
+                this.gl.activeTexture(this.gl.TEXTURE0 + this.buffers[id].texture_id );
+                this.gl.bindTexture(this.gl.TEXTURE_2D, this.buffers[id].texture );
+                this.gl.uniform1i(this.shaderProgram.texture, this.buffers[id].texture_id );
+                
             }
 
         }
@@ -377,6 +390,18 @@ class Renderer{
             this.gl.vertexAttribPointer(this.shaderProgram.vertexTexcoordAttribute, tex_coord_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, color_buffer);
             this.gl.vertexAttribPointer(this.shaderProgram.vertexColorAttribute, color_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
+            
+            if(buffer.texture_id >= 0){
+                //console.log("Drawing texture for index " + (buffer.texture_id+2) +"\n");
+                this.gl.activeTexture(this.gl.TEXTURE0 + buffer.texture_id );
+                this.gl.bindTexture(this.gl.TEXTURE_2D, buffer.texture );
+                this.gl.uniform1i(this.shaderProgram.texture, buffer.texture_id );
+
+                this.gl.uniform1i(this.shaderProgram.has_texture, 1 );
+            }else{
+                //console.log("No texture for index " + (buffer.texture_id+2) +"\n");
+                this.gl.uniform1i(this.shaderProgram.has_texture, 0 );
+            }
             this.gl.drawArrays(this.gl.TRIANGLES, 0, position_buffer.numItems);
         }
     }
