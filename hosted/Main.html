@@ -44,8 +44,9 @@ body {
 	in vec3 v_normal;
     in vec2 v_texcoord;
 	
-	uniform vec3 light_point;
+	uniform vec3 u_light_point;
     uniform sampler2D u_texture;
+    uniform int u_has_texture ;
 	
 	out vec4 frag_color;
 
@@ -56,11 +57,10 @@ body {
 	}
 	
     void main(void) {
-		vec3 light_ray = v_position - light_point;
-		float direct = lightFrom(light_point) ;
+		float direct = lightFrom(u_light_point) ;
 		float indirect = 1.;
 		float l = 0.3*indirect + 0.7 * direct ; // Add some ambient light
-        if(length(v_texcoord) > 0.0 ){
+        if(u_has_texture > 0){
             vec4 t_color = texture(u_texture, v_texcoord);
             frag_color = vec4(t_color.r*l,t_color.g*l,t_color.b*l , 1.0);
             //frag_color = vec4(1.0,0.0,0.0,1.0);
@@ -68,6 +68,7 @@ body {
 
 
         }else{
+            //frag_color = vec4(1.0,0.0,0.0,1.0);
 		    frag_color = vec4(v_color*l ,1.0);	// Scale the color by the lighting;
         }
 		

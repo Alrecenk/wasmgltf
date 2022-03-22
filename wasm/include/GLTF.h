@@ -69,9 +69,7 @@ class GLTF{
         std::map<int,Image> images;
         glm::vec3 min; // minimum values in each axis part of AABB
         glm::vec3 max; // maximum values in each axis part of AABB
-        bool vertices_changed = false;
-        bool color_changed = false;
-        bool material_changed = false;
+        bool buffers_changed = false;
 
         // Constructor
         GLTF();
@@ -79,11 +77,8 @@ class GLTF{
         //Destructor
         ~GLTF();
         
-        // Returns a Variant of openGL triangle buffers for displaying this mesh_ in world_ space
-        // result["position"] = float array of triangle vertices in order (Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz)
-        // result["normal] = same format for vertex normals
-        // result["color"] = same format for colors but RGB floats from 0 to 1
-        Variant getChangedBuffers();
+        
+        Variant getChangedBuffer(int material);
 
         // Sets this Model to a chunk of raw GLB data
         void setModel(const byte* data, int data_length);
@@ -125,8 +120,8 @@ class GLTF{
 
     private:
         // Performs the duplicate work for the various get vertex buffer functions
-        Variant getFloatBuffer(std::vector<glm::vec3>& ptr);
-        Variant getFloatBuffer(std::vector<glm::vec2>& ptr);
+        Variant getFloatBuffer(std::vector<glm::vec3>& ptr, int material);
+        Variant getFloatBuffer(std::vector<glm::vec2>& ptr, int material);
 
         // returns the normal of a triangle
         glm::vec3 getNormal(Triangle t);

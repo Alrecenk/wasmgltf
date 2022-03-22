@@ -27,8 +27,7 @@ using std::queue;
 
 // Constructor
 GLTF::GLTF(){
-    this->color_changed = false;
-    this->vertices_changed = false;
+    this->buffers_changed = false;
 }
 
 //Destructor
@@ -37,133 +36,140 @@ GLTF::~GLTF(){
 
 // Returns a Variant of 3 vec3's'for each each triangle dereferenced
 // Used to get arrays for displaying with a simple shader
-Variant GLTF::getFloatBuffer(std::vector<glm::vec3>& point_list){
-    Variant buffer;
+Variant GLTF::getFloatBuffer(std::vector<glm::vec3>& point_list, int material){
+
+    int num_triangles = 0 ;
+    for(int k=0;k<this->triangles.size();k++){
+        if(this->triangles[k].material == material){
+            num_triangles++;
+        }
+    }
+
     //TODO this access pattern prevents these Variant members from being private 
     // but using the constructor forces a copy that isn't necesarry 
     // Maybe here should be an array constructor that just takes type and size
     // and then the get array provides a shallow pointer that can't be freed?
+    Variant buffer;
     buffer.type_ = Variant::FLOAT_ARRAY;
-    buffer.ptr = (byte*)malloc(4 + this->triangles.size() * 9 * sizeof(float));
+    buffer.ptr = (byte*)malloc(4 + num_triangles * 9 * sizeof(float));
     
-    *((int*)buffer.ptr) = this->triangles.size() * 9 ;// number of floats in array
+    *((int*)buffer.ptr) = num_triangles * 9 ;// number of floats in array
     float* buffer_array =  (float*)(buffer.ptr+4) ; // pointer to start of float array
+    int j9 = 0 ;
     for(int k=0;k<this->triangles.size();k++){
-        Triangle& t = this->triangles[k];
-        int k9 = k*9; // does this really matter?
-        // A
-        vec3& A = point_list[t.A];
-        buffer_array[k9] = A.x;
-        buffer_array[k9+1] = A.y;
-        buffer_array[k9+2] = A.z;
-        // B
-        vec3& B = point_list[t.B];
-        buffer_array[k9+3] = B.x;
-        buffer_array[k9+4] = B.y;
-        buffer_array[k9+5] = B.z;
-        // C
-        vec3& C = point_list[t.C];
-        buffer_array[k9+6] = C.x;
-        buffer_array[k9+7] = C.y;
-        buffer_array[k9+8] = C.z;
+        if(this->triangles[k].material == material){
+            Triangle& t = this->triangles[k];
+            // A
+            vec3& A = point_list[t.A];
+            buffer_array[j9] = A.x;
+            buffer_array[j9+1] = A.y;
+            buffer_array[j9+2] = A.z;
+            // B
+            vec3& B = point_list[t.B];
+            buffer_array[j9+3] = B.x;
+            buffer_array[j9+4] = B.y;
+            buffer_array[j9+5] = B.z;
+            // C
+            vec3& C = point_list[t.C];
+            buffer_array[j9+6] = C.x;
+            buffer_array[j9+7] = C.y;
+            buffer_array[j9+8] = C.z;
+            j9+=9;
+        }
     }
     return buffer ;
 }
 
 // Returns a Variant of 3 vec2's'for each each triangle dereferenced
 // Used to get arrays for displaying with a simple shader
-Variant GLTF::getFloatBuffer(std::vector<glm::vec2>& point_list){
-    Variant buffer;
+Variant GLTF::getFloatBuffer(std::vector<glm::vec2>& point_list, int material){
+    int num_triangles = 0 ;
+    for(int k=0;k<this->triangles.size();k++){
+        if(this->triangles[k].material == material){
+            num_triangles++;
+        }
+    }
+
     //TODO this access pattern prevents these Variant members from being private 
     // but using the constructor forces a copy that isn't necesarry 
     // Maybe here should be an array constructor that just takes type and size
     // and then the get array provides a shallow pointer that can't be freed?
+    Variant buffer;
     buffer.type_ = Variant::FLOAT_ARRAY;
-    buffer.ptr = (byte*)malloc(4 + this->triangles.size() * 6 * sizeof(float));
+    buffer.ptr = (byte*)malloc(4 + num_triangles * 6 * sizeof(float));
     
-    *((int*)buffer.ptr) = this->triangles.size() * 9 ;// number of floats in array
+    *((int*)buffer.ptr) = num_triangles * 6 ;// number of floats in array
     float* buffer_array =  (float*)(buffer.ptr+4) ; // pointer to start of float array
+    int j6 = 0 ;
     for(int k=0;k<this->triangles.size();k++){
-        Triangle& t = this->triangles[k];
-        int k6 = k*6; // does this really matter?
-        // A
-        vec2& A = point_list[t.A];
-        buffer_array[k6] = A.x;
-        buffer_array[k6+1] = A.y;
-        // B
-        vec2& B = point_list[t.B];
-        buffer_array[k6+2] = B.x;
-        buffer_array[k6+3] = B.y;
-        // C
-        vec2& C = point_list[t.C];
-        buffer_array[k6+4] = C.x;
-        buffer_array[k6+5] = C.y;
+        if(this->triangles[k].material == material){
+            Triangle& t = this->triangles[k];
+            // A
+            vec2& A = point_list[t.A];
+            buffer_array[j6] = A.x;
+            buffer_array[j6+1] = A.y;
+            // B
+            vec2& B = point_list[t.B];
+            buffer_array[j6+2] = B.x;
+            buffer_array[j6+3] = B.y;
+            // C
+            vec2& C = point_list[t.C];
+            buffer_array[j6+4] = C.x;
+            buffer_array[j6+5] = C.y;
+            j6+=6;
+        }
     }
     return buffer ;
 }
 
 // Returns a Variant of openGL triangle buffers for displaying this mesh_ in world_ space
-// result["position"] = float array of triangle vertices in order (Ax,Ay,Az,Bx,By,Bz,Cx,Cy,Cz)
-// result["normal] = same format for vertex normals
-// result["color"] = same format for colors but RGB floats from 0 to 1
-// result["vertices"] = number of vertices
-Variant GLTF::getChangedBuffers(){
+
+Variant GLTF::getChangedBuffer(int selected_material){
     std::map<string, Variant> buffers;
 
-    if(vertices_changed){
-        vector<vec3> position ;
-        vector<vec3> normal ;
-        vector<vec2> tex_coord;
-        for(const auto& v : this->vertices){
-            position.push_back(v.position);
-            normal.push_back(v.normal);
-            tex_coord.push_back(v.tex_coord);
-        }
+    vector<vec3> position ;
+    vector<vec3> normal ;
+    vector<vec2> tex_coord;
+    for(const auto& v : this->vertices){
+        position.push_back(v.position);
+        normal.push_back(v.normal);
+        tex_coord.push_back(v.tex_coord);
+    }
+    
+
+    buffers["position"] = this->getFloatBuffer(position, selected_material);
+    buffers["normal"] = this->getFloatBuffer(normal, selected_material);
+    buffers["tex_coord"] = this->getFloatBuffer(tex_coord, selected_material);
+    
+
+    vector<vec3> color ;
+    for(const auto& v : this->vertices){
+        color.push_back(v.color_mult);
+    }
+
+    buffers["color"] = this->getFloatBuffer(color, selected_material);
         
+    
+    buffers["vertices"] = Variant((int)(buffers["color"].getArrayLength()/3));
 
-        buffers["position"] = this->getFloatBuffer(position);
-        buffers["normal"] = this->getFloatBuffer(normal);
-        buffers["tex_coord"] = this->getFloatBuffer(tex_coord);
-        vertices_changed = false;
+    const auto& mat = this->materials[selected_material] ;
+    map<string,Variant> mat_map;
+    mat_map["color"] = Variant(mat.color);
+    mat_map["metallic"] = Variant(mat.roughness);
+    mat_map["roughness"] = Variant(mat.roughness);
+    mat_map["name"] = Variant(mat.name) ;
+    mat_map["double_sided"] = Variant(mat.double_sided ? 1 : 0);
+    mat_map["has_texture"] = Variant(mat.texture ? 1: 0);
+    if(mat.texture){
+        const Image& img = this->images[mat.image];
+        mat_map["image_name"] = Variant(img.name);
+        mat_map["image_width"] = Variant(img.width) ;
+        mat_map["image_height"] = Variant(img.height) ;
+        mat_map["image_channels"] = Variant(img.channels);
+        mat_map["image_data"] = img.data.clone();
     }
-    if(color_changed){
-        vector<vec3> color ;
-        for(const auto& v : this->vertices){
-            color.push_back(v.color_mult);
-        }
-
-        buffers["color"] = this->getFloatBuffer(color);
-        color_changed = false;
-    }
-    buffers["vertices"] = Variant((int)(this->triangles.size() * 3));
-
-    if(material_changed){
-        map<string,Variant> materials_map ; // TODO JS deserializer doesn't support int objects
-        for(auto const & [material_id, mat]: this->materials){
-            map<string,Variant> mat_map;
-            mat_map["color"] = Variant(mat.color);
-            mat_map["metallic"] = Variant(mat.roughness);
-            mat_map["roughness"] = Variant(mat.roughness);
-            mat_map["name"] = Variant(mat.name) ;
-            mat_map["double_sided"] = Variant(mat.double_sided ? 1 : 0);
-            mat_map["has_texture"] = Variant(mat.texture ? 1: 0);
-            if(mat.texture){
-                const Image& img = this->images[mat.image];
-                mat_map["image_name"] = Variant(img.name);
-                mat_map["image_width"] = Variant(img.width) ;
-                mat_map["image_height"] = Variant(img.height) ;
-                mat_map["image_channels"] = Variant(img.channels);
-                mat_map["image_data"] = img.data.clone();
-            }
-            std::stringstream ss;
-            ss << material_id;
-            string s_id = ss.str();
-            materials_map[s_id] = Variant(mat_map) ;
-        }
-        material_changed = false;
-        buffers["materials"] = Variant(materials_map);
-    }
-
+    
+    buffers["material"] = Variant(mat_map);
 
     return Variant(buffers);
 }
@@ -194,7 +200,7 @@ void GLTF::setModel(const byte* data, int data_length){
             string header = string((char *) (data + 20), JSON_length);
             //Variant::printJSON(s);
             json = Variant::parseJSON(header);
-            json.printFormatted();
+            //json.printFormatted();
             int bin_chunk_start = 20 + JSON_length ;
             
             if(bin_chunk_start %4 != 0){
@@ -298,7 +304,7 @@ GLTF::Accessor GLTF::access(int accessor_id, const Variant& json, const Variant&
 void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
                         const Variant& primitive, const glm::mat4& transform, const Variant& json, const Variant& bin){
     //printf("Adding primitive:\n");
-    primitive.printFormatted();
+    //primitive.printFormatted();
     if(primitive["mode"].defined() && primitive["mode"].getInt() != 4){
         printf("Primitive mode %d not implemented yet. Skipping.\n", primitive["mode"].getInt()); // TODO
         return ;
@@ -325,7 +331,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
         if(na.type == "VEC3" && na.component_type == 5126){
             has_normals = true;
             normal_data = na.data.getFloatArray();
-            printf("Got normals!\n");
+            //printf("Got normals!\n");
         }else{
             printf("Normals are a weird type, skipping %s : %d \n" , na.type.c_str(), na.component_type);
         }
@@ -340,7 +346,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
         if(ta.type == "VEC2" && ta.component_type == 5126){
             has_texcoords = true;
             texcoords_data = ta.data.getFloatArray();
-            printf("Got Texture coordinates!\n");
+            //printf("Got Texture coordinates!\n");
         }else{
             printf("Texture coordinates are a weird type, skipping %s : %d \n" , ta.type.c_str(), ta.component_type);
         }
@@ -395,9 +401,15 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
 
     int material = 0 ;
     if(primitive["material"].defined()){
-        printf("Got material!\n");
         material = primitive["material"].getInt();
+        //printf("Need material %d !\n", material);
+    }else{
+        printf("Failed to get material property!\n");
     }
+    if(!json["materials"][material].defined()){
+        printf("Failed to find material %d for primitive \n",  material);
+    }
+    
     Variant iv = json["materials"][material]["pbrMetallicRoughness"]["baseColorTexture"]["index"] ;
     int image = -1;
     if(iv.defined()){
@@ -406,6 +418,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
         
         //printf("texture in primitive  %d x%d \n ", img.width, img.height);
     }
+    
     
     for(int k=0;k<num_vertices;k++){
         //printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
@@ -421,6 +434,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
         }
         if(has_texcoords){
             v.tex_coord = vec2(texcoords_data[2*k], texcoords_data[2*k+1]) ;
+            /*
             if(image >= 0){
                 //printf("tex coords: %f, %f\n", v.tex_coord[0],v.tex_coord[1]);
                 Image &img = this->images[image];
@@ -438,6 +452,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
                 //printf(" f color %f, %f, %f \n ", v.color_mult.r,v.color_mult.g,v.color_mult.b);
 
             }
+            */
         }
         vertices.push_back(v);
     }
@@ -456,9 +471,9 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
 
 void GLTF::addMaterial(int material_id, const Variant& json, const Variant& bin){
     if(this->materials.find(material_id) == this->materials.end()){
-        printf("Adding material!\n");
+        //printf("Adding material %d!\n", material_id);
         Variant m_json = json["materials"][material_id];
-        m_json.printFormatted();
+        //m_json.printFormatted();
         Material mat ;
         if(m_json["name"].defined()){
             //printf("Got name!\n");
@@ -489,10 +504,18 @@ void GLTF::addMaterial(int material_id, const Variant& json, const Variant& bin)
         }
 
         if(m_json["pbrMetallicRoughness"]["baseColorTexture"]["index"].defined()){
-            //printf("Got color texture index!\n");
+            //printf("Got base color texture index for %d!\n", material_id);
             mat.texture = true;
             mat.image = m_json["pbrMetallicRoughness"]["baseColorTexture"]["index"].getInt();
             addImage(mat.image, json, bin);
+        }else if(m_json["pbrMetallicRoughness"]["extensions"]["KHR_materials_pbrSpecularGlossiness"]["diffuseTexture"]["index"].defined()){
+            //printf("Got diffuse color texture index for %d!\n", material_id);
+            mat.texture = true;
+            mat.image = m_json["pbrMetallicRoughness"]["extensions"]["KHR_materials_pbrSpecularGlossiness"]["diffuseTexture"]["index"].getInt();
+            addImage(mat.image, json, bin);
+        }else{
+            printf("No texture index for %d!\n", material_id);
+            mat.texture = false;
         }
 
         /* TODO
@@ -506,16 +529,19 @@ void GLTF::addMaterial(int material_id, const Variant& json, const Variant& bin)
         */
 
         this->materials[material_id] = mat ;
-        this->material_changed = true;
+        this->buffers_changed = true;
     }
 }
 
 void GLTF::addImage(int image_id, const Variant& json, const Variant& bin){
-    printf("Adding image %d!\n", image_id);
+    //printf("Adding image %d!\n", image_id);
     if(this->images.find(image_id) == this->images.end()){
         Image& img = this->images[image_id] ;
         Variant i_json = json["images"][image_id];
-        i_json.printFormatted();
+        if(!i_json.defined()){
+            printf("Material referencing image not found!\n");
+        }
+        //i_json.printFormatted();
         if(i_json["name"].defined()){
             printf("Got name!\n");
             img.name = i_json["name"].getString();
@@ -542,7 +568,7 @@ void GLTF::addImage(int image_id, const Variant& json, const Variant& bin){
 
 void GLTF::addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
                    int mesh_id, const glm::mat4& transform, const Variant& json, const Variant& bin){
-    printf("Adding mesh %d!\n", mesh_id);
+    //printf("Adding mesh %d!\n", mesh_id);
 
     auto primitives = json["meshes"][mesh_id]["primitives"];
     for(int k=0;k<primitives.getArrayLength();k++){
@@ -552,7 +578,7 @@ void GLTF::addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangl
 
 void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
                    int node_id, const glm::mat4& transform, const Variant& json, const Variant& bin){
-    printf("Adding node %d!\n", node_id);
+    //printf("Adding node %d!\n", node_id);
     auto node = json["nodes"][node_id];
 
     mat4 new_transform = transform ;
@@ -630,8 +656,7 @@ void GLTF::addScene(std::vector<Vertex>& vertices, std::vector<Triangle>& triang
 
 // Compacts the given vertices and sets the model to them
 void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Triangle>& triangles){
-    this->vertices_changed = true;
-    this->color_changed = true;
+    
 
     this->vertices = vertices;
     this->triangles = triangles;
@@ -672,6 +697,8 @@ void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Trian
         if(v.y > this->max.y)this->max.y = v.y;
         if(v.z > this->max.z)this->max.z = v.z;
     }
+
+    this->buffers_changed = true;
 }
 
 // hashes a vertex to allow duplicates to be detected and merged
@@ -752,7 +779,7 @@ void GLTF::paint(const vec3 &center, const float &radius, const vec3 &color){
             // if actually changing
             if(this->vertices[k].color_mult.x != color.x || this->vertices[k].color_mult.y != color.y || this->vertices[k].color_mult.z != color.z ){
                 this->vertices[k].color_mult = color;
-                this->color_changed = true;
+                this->buffers_changed = true;
             }
         }
     }

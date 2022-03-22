@@ -73,10 +73,22 @@ byte* setModel(byte* ptr){
 
 byte* getUpdatedBuffers(byte* ptr){
     map<string,Variant> buffers;
-    std::stringstream ss;
-    ss << model_global_id;
-    string s_id = ss.str();
-    buffers[s_id] = model_global.getChangedBuffers() ;
+    if(model_global.buffers_changed){
+        for(auto const & [material_id, mat]: model_global.materials){
+            std::stringstream ss;
+            ss << material_id;
+            string s_id = ss.str();
+            buffers[s_id] = model_global.getChangedBuffer(material_id) ;
+        }
+        model_global.buffers_changed = false;
+        /*
+        for(int k=0;k<model_global.triangles.size();k++){
+            if(model_global.materials.find(model_global.triangles[k].material) == model_global.materials.end()){
+                printf("triangle has material not in materials : %d!\n", model_global.triangles[k].material);
+            }
+        }*/
+            
+    }
     return pack(buffers) ;
 }
 
