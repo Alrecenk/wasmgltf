@@ -757,11 +757,13 @@ float GLTF::trace(Triangle tri, const vec3 &p, const vec3 &v){
 // Given a ray in model space (p + v*t) return the t value of the nearest collision
 // return negative if no collision
 float GLTF::rayTrace(const vec3 &p, const vec3 &v){
+    last_traced_tri = -1 ;
     float min_t = std::numeric_limits<float>::max() ;
     for(int k=0;k<this->triangles.size();k++){
         float t = this->trace(this->triangles[k],p,v);
         if(t > 0 && t < min_t){
             min_t = t ;
+            last_traced_tri  = k ;
         }
     }
     if(min_t < std::numeric_limits<float>::max() ){

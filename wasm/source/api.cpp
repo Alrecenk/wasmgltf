@@ -111,7 +111,30 @@ byte* rayTrace(byte* ptr){
     map<string, Variant> ret_map;
     ret_map["t"] = Variant(t);
     ret_map["x"] = Variant(p+v*t);
+    ret_map["index"] = Variant(model_global.last_traced_tri);
     return pack(ret_map);
+}
+
+byte* scan(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    vec3 p = obj["p"].getVec3() ;
+    vec3 v = obj["v"].getVec3();
+    float t = model_global.rayTrace(p, v);
+    map<string, Variant> ret_map;
+    ret_map["t"] = Variant(t);
+    ret_map["x"] = Variant(p+v*t);
+    ret_map["index"] = Variant(model_global.last_traced_tri);
+
+    if(model_global.last_traced_tri != -1){
+        GLTF::Triangle tri = model_global.triangles[model_global.last_traced_tri];
+        int material_id = tri.material;
+        GLTF::Material mat = model_global.materials[tri.material];
+        printf("triangle : %d, material: %d \n" ,model_global.last_traced_tri, material_id);
+        if(model_global.json["materials"][material_id].defined()){
+            model_global.json["materials"][material_id].printFormatted();
+        }
+    }
+    return emptyReturn();
 }
 
 //Allocates an array of integers of a given size and returns a pointer to it.
