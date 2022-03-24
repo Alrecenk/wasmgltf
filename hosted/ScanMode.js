@@ -1,4 +1,4 @@
-class PaintMode extends ExecutionMode{
+class ScanMode extends ExecutionMode{
     /* Input trackers. */
 
     // Mouse position
@@ -72,7 +72,10 @@ class PaintMode extends ExecutionMode{
             this.rotating = true;
             this.tools.renderer.startRotate(this.camera_focus, pointers[0]);
         }else{
+
             let ray = tools.renderer.getRay([this.mouse_down_x,this.mouse_down_y]);
+            tools.API.call("scan", ray, new Serializer()); 
+            /*
             let trace_data = tools.API.call("rayTrace", ray, new Serializer()); 
             let t = trace_data.t ;
             if(t > 0){
@@ -83,6 +86,7 @@ class PaintMode extends ExecutionMode{
                 tools.API.call("paint", params, new Serializer())
                 this.dragging = true;
             }
+            */
         }
     }
 

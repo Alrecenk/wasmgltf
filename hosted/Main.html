@@ -32,8 +32,7 @@ body {
 <script type="text/javascript" src="ExecutionMode.js"></script>
 <script type="text/javascript" src="generated/api.js"></script>
 <script type="text/javascript" src="Serializer.js"></script>
-<script type="text/javascript" src="PaintMode.js"></script>
-<script type="text/javascript" src="CameraMode.js"></script>
+<script type="text/javascript" src="ScanMode.js"></script>
 
 <script id="shader-fs" type="x-shader/x-fragment">#version 300 es
     // A simple fragment shader with a single point light
@@ -47,6 +46,7 @@ body {
 	uniform vec3 u_light_point;
     uniform sampler2D u_texture;
     uniform int u_has_texture ;
+    uniform float u_alpha_cutoff ;
 	
 	out vec4 frag_color;
 
@@ -59,10 +59,14 @@ body {
     void main(void) {
 		float direct = lightFrom(u_light_point) ;
 		float indirect = 1.;
-		float l = 0.3*indirect + 0.7 * direct ; // Add some ambient light
+		float l = 0.5*indirect + 0.5 * direct ; // Add some ambient light
         if(u_has_texture > 0){
             vec4 t_color = texture(u_texture, v_texcoord);
-            frag_color = vec4(t_color.r*l,t_color.g*l,t_color.b*l , 1.0);
+            if(t_color.a > u_alpha_cutoff){
+                frag_color = vec4(t_color.r*l,t_color.g*l,t_color.b*l , 1.0);
+            }else{
+                discard;
+            }
             //frag_color = vec4(1.0,0.0,0.0,1.0);
             //frag_color = texture(u_texture, v_texcoord);
 
@@ -292,16 +296,16 @@ function switchExecutionMode(next_mode){
 
 function initializeModes(){
     tools.modes = {} ;
-    tools.modes.paint_mode = new PaintMode(tools);
-    tools.modes.camera_mode = new CameraMode(tools);
-    switchExecutionMode(tools.modes.paint_mode) ;
+    tools.modes.scan_mode = new ScanMode(tools);
+    switchExecutionMode(tools.modes.scan_mode) ;
 }
 
 function setMainMenuButtons(){
     buttons = {};
     buttons["fps_label"] = new InterfaceButton(tools.canvas.width-80, 10, 80, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
-    buttons["Paint Mode"] = new InterfaceButton(5, 10, 100, 30, "Paint", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.paint_mode);});
-    buttons["Camera Mode"] = new InterfaceButton(105, 10, 100, 30, "Camera", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.camera_mode);});
+    buttons["enter_vr"] = new InterfaceButton(5, 10, 100, 30, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.scan_mode);});
+    //buttons["Camera Mode"] = new InterfaceButton(105, 10, 100, 30, "Camera", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.camera_mode);});
+    
     tools.buttons = buttons ;
 }
 
@@ -314,7 +318,6 @@ function onBodyLoad(){
     // Wait for the WASM module to finish loading before booting up the socket and app
     window.initializeCPPAPI().then(function(Module){
         tools.API = Module ;
-        changeColor();
         tools.new_file = false;
         tools.brush_size = 1 ;
         app = canvasApp(); // Start the app
@@ -322,14 +325,6 @@ function onBodyLoad(){
         setMainMenuButtons();
     });
 }
-
-
-function changeColor(){
-    tools.paint_color = [Math.random(),Math.random(), Math.random()];
-    document.getElementById("range_size").style.background = "rgb(" + Math.floor(tools.paint_color[0]*255) +", " 
-    + Math.floor(tools.paint_color[1]*255) +", "+ Math.floor(tools.paint_color[2]*255) +")";
-}
-
 
 function loadGLBFile() {
     var file    = document.getElementById('loader').files[0];
@@ -367,8 +362,6 @@ function loadGLBFile() {
 	</div>
     <p align="center">
         <input id="loader" type="file" onchange='loadGLBFile()' autocomplete="off">
-        <button onclick="changeColor()">Change Color</button>
-        Size: <input type="range" name="brush_size" id="range_size" value="20" min="1" max="100" oninput="tools.brush_size = range_size.value/20.0">
-    </p>
+        </p>
 </body>
 </html>

@@ -70,6 +70,7 @@ class GLTF{
         glm::vec3 min; // minimum values in each axis part of AABB
         glm::vec3 max; // maximum values in each axis part of AABB
         bool buffers_changed = false;
+        int last_traced_tri ; // Index of last triangle hit by raytrace
 
         // Constructor
         GLTF();

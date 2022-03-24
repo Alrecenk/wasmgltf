@@ -122,6 +122,7 @@ class Renderer{
         this.shaderProgram.light_point = this.gl.getUniformLocation(this.shaderProgram, "u_light_point");
         this.shaderProgram.texture = this.gl.getUniformLocation(this.shaderProgram, "u_texture");
         this.shaderProgram.has_texture = this.gl.getUniformLocation(this.shaderProgram, "u_has_texture");
+        this.shaderProgram.alpha_cutoff = this.gl.getUniformLocation(this.shaderProgram, "u_alpha_cutoff");
     }
 
     // Push current matrices to the shader
@@ -402,6 +403,9 @@ class Renderer{
                 //console.log("No texture for index " + (buffer.texture_id+2) +"\n");
                 this.gl.uniform1i(this.shaderProgram.has_texture, 0 );
             }
+
+            this.gl.uniform1f(this.shaderProgram.alpha_cutoff, 0.5 );
+
             this.gl.drawArrays(this.gl.TRIANGLES, 0, position_buffer.numItems);
         }
     }
