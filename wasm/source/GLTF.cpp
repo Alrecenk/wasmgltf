@@ -410,6 +410,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
         printf("Failed to find material %d for primitive \n",  material);
     }
     
+    vec3 mat_color = vec3(1,1,1);
     Variant iv = json["materials"][material]["pbrMetallicRoughness"]["baseColorTexture"]["index"] ;
     int image = -1;
     if(iv.defined()){
@@ -417,7 +418,18 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
         image = iv.getInt();
         
         //printf("texture in primitive  %d x%d \n ", img.width, img.height);
+    }else{
+        Variant ic = json["materials"][material]["pbrMetallicRoughness"]["extensions"]["KHR_materials_pbrSpecularGlossiness"]["diffuseFactor"];
+        if(!ic.defined()){
+            ic = json["materials"][material]["pbrMetallicRoughness"]["baseColorFactor"];
+        }
+        if(ic.defined()){
+            mat_color = vec3(ic[0].getNumberAsFloat(), ic[1].getNumberAsFloat(), ic[2].getNumberAsFloat());
+        }
     }
+
+    
+
     
     
     for(int k=0;k<num_vertices;k++){
@@ -427,6 +439,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
         //printf("global: %f , %f , %f\n", v_global.x, v_global.y, v_global.z);
         Vertex v ;
         v.position = vec3(v_global);
+        v.color_mult = mat_color;
         if(has_normals){
             vec3 n_local = vec3(normal_data[3*k], normal_data[3*k+1], normal_data[3*k+2]) ;
             vec4 n_global = transform*vec4(n_local,0);
@@ -448,7 +461,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
                 byte g = image_bytes[(y*img.width + x)*img.channels+1];
                 byte b = image_bytes[(y*img.width + x)*img.channels+2];
                 //printf("color %d, %d, %d \n ", r,g,b);
-                v.color_mult = vec3(r/255.0f, g/255.0f, b/255.0f);
+                
                 //printf(" f color %f, %f, %f \n ", v.color_mult.r,v.color_mult.g,v.color_mult.b);
 
             }
@@ -514,7 +527,7 @@ void GLTF::addMaterial(int material_id, const Variant& json, const Variant& bin)
             mat.image = m_json["pbrMetallicRoughness"]["extensions"]["KHR_materials_pbrSpecularGlossiness"]["diffuseTexture"]["index"].getInt();
             addImage(mat.image, json, bin);
         }else{
-            printf("No texture index for %d!\n", material_id);
+            //printf("No texture index for %d!\n", material_id);
             mat.texture = false;
         }
 
