@@ -64,6 +64,9 @@ byte* setModel(byte* ptr){
         size = fmax(size , abs(model_global.min[k]-center[k]));
         
     }
+    for(int k=0;k<model_global.vertices.size();k++){
+        model_global.vertices[k].position = (model_global.vertices[k].position-center)*(0.5f/size);
+    }
     //printf("Zoom:%f\n", zoom);
     map<string, Variant> ret_map;
     ret_map["center"] = Variant(center);

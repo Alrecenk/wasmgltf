@@ -43,6 +43,9 @@ class ScanMode extends ExecutionMode{
     // Called when the app should be redrawn
     // Note: the elements to draw onto or with should be included in the tools on construction and saved for the duration of the mode
     draw(){
+        if(renderer.xr_session){
+            return ;
+        }
         tools.renderer.clearViewport();
         // Get any mesh updates pending in the module
 

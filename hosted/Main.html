@@ -303,7 +303,7 @@ function initializeModes(){
 function setMainMenuButtons(){
     buttons = {};
     buttons["fps_label"] = new InterfaceButton(tools.canvas.width-80, 10, 80, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
-    buttons["enter_vr"] = new InterfaceButton(5, 10, 100, 30, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.scan_mode);});
+    buttons["enter_vr"] = new InterfaceButton(5, 10, 100, 30, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
     //buttons["Camera Mode"] = new InterfaceButton(105, 10, 100, 30, "Camera", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.camera_mode);});
     
     tools.buttons = buttons ;
@@ -336,13 +336,14 @@ function loadGLBFile() {
             let params = {};
             params.data = load_data;
             let m = tools.API.call("setModel", params, new Serializer()) ;
+            /*
             current_mode.camera_zoom = m.size*2.5;
             current_mode.camera_focus = m.center ;
             tools.renderer.setZoom(current_mode.camera_zoom);
             tools.renderer.startRotate(current_mode.camera_focus, {x:500.0,y:500.0});
             tools.renderer.continueRotate({x:500.0,y:501.0});
             tools.renderer.setZoom(current_mode.camera_zoom);
-
+            */
         }
     }
 

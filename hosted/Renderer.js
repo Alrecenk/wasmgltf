@@ -1,3 +1,5 @@
+
+var renderer ;
 class Renderer{
 
     gl; // WebGl instance
@@ -18,9 +20,11 @@ class Renderer{
     xOrbitSpeed=-0.004;
     yOrbitSpeed=0.007;
     rotate_speed=0.01;
+
     
     // Performs the set-up for openGL canvas and shaders on construction
     constructor(webgl_canvas_id, ui_canvas_id , fragment_shader_id, vertex_shader_id, space_underneath_app){
+        renderer = this ;
         var canvas = document.getElementById(webgl_canvas_id);
         var ui_canvas = document.getElementById(ui_canvas_id);
         canvas.width = document.body.clientWidth; 
@@ -41,7 +45,7 @@ class Renderer{
         this.setLightPosition([0,0,-250]);
 
         mat4.perspective(this.pMatrix, 45, this.gl.viewportWidth / this.gl.viewportHeight, 0.1, 3000.0);
-        this.camera_pos = [20,20,20];
+        this.camera_pos = [1,1,1];
         mat4.lookAt(this.mvMatrix, this.camera_pos, [0,0,0], [0,1,0] );
 
         //console.log(this.gl);
@@ -51,7 +55,7 @@ class Renderer{
     // Initialize webGL on a canvas
     initGL(canvas){
         try {
-            this.gl = canvas.getContext("webgl2");
+            this.gl = canvas.getContext("webgl2",{ xrCompatible: true });
             this.gl.viewportWidth = canvas.width;
             this.gl.viewportHeight = canvas.height;
         } catch (e) {
@@ -230,10 +234,13 @@ class Renderer{
     //TODO very shader specific, not a fan, needed it to migrate old code
     setLightPosition(light_point){
         this.gl.uniform3fv(this.shaderProgram.light_point, light_point);
+        this.light_point = light_point ;
     }
 
     drawMeshes(){
-        this.setMatrixUniforms();
+        if(!this.xr_session){
+            this.setMatrixUniforms();
+        }
         for(let id in this.buffers){
             this.drawModel(this.buffers[id]);
         }
@@ -409,5 +416,205 @@ class Renderer{
             this.gl.drawArrays(this.gl.TRIANGLES, 0, position_buffer.numItems);
         }
     }
+
+    startXRSession(){
+        navigator.xr.requestSession('immersive-vr').then(renderer.onXRSessionStarted);
+    }
+
+    onXRSessionStarted(session){
+        renderer.xr_session = session;
+        //xrButton.textContent = 'Exit VR';
+
+        // Listen for the sessions 'end' event so we can respond if the user
+        // or UA ends the session for any reason.
+        session.addEventListener('end', renderer.onXRSessionEnded);
+
+        // Create a WebGL context to render with, initialized to be compatible
+        // with the XRDisplay we're presenting to.
+        //let canvas = document.createElement('canvas');
+        //gl = canvas.getContext('webgl2', { xrCompatible: true });
+
+        // Use the new WebGL context to create a XRWebGLLayer and set it as the
+        // sessions baseLayer. This allows any content rendered to the layer to
+        // be displayed on the XRDevice.
+        session.updateRenderState({ baseLayer: new XRWebGLLayer(session, renderer.gl) });
+
+        // Initialize the shaders
+        //initShaderProgram(gl, "shader-fs", "shader-vs");
+
+        // Get a reference space, which is required for querying poses. In this
+        // case an 'local' reference space means that all poses will be relative
+        // to the location where the XRDevice was first detected.
+        session.requestReferenceSpace('local').then((refSpace) => {
+            renderer.xr_ref_space = refSpace;
+
+            // Inform the session that we're ready to begin drawing.
+            session.requestAnimationFrame(renderer.onXRFrame);
+        });
+    }
+
+      // Called either when the user has explicitly ended the session by calling
+      // session.end() or when the UA has ended the session for any reason.
+      // At this point the session object is no longer usable and should be
+      // discarded.
+    onXRSessionEnded(event) {
+        renderer.xr_session = null;
+        console.log("XR session ended.");
+    }
+
+      // Called every time the XRSession requests that a new frame be drawn.
+    onXRFrame(time, frame) {
+         // console.log(time);
+        let session = frame.session;
+
+        // Inform the session that we're ready for the next frame.
+        session.requestAnimationFrame(renderer.onXRFrame);
+
+        // Get the XRDevice pose relative to the reference space we created
+        // earlier.
+        let pose = frame.getViewerPose(renderer.xr_ref_space);
+
+        // Getting the pose may fail if, for example, tracking is lost. So we
+        // have to check to make sure that we got a valid pose before attempting
+        // to render with it. If not in this case we'll just leave the
+        // framebuffer cleared, so tracking loss means the scene will simply
+        // disappear.
+        if (pose) {
+            let glLayer = session.renderState.baseLayer;
+
+            // If we do have a valid pose, bind the WebGL layer's framebuffer,
+            // which is where any content to be displayed on the XRDevice must be
+            // rendered.
+            renderer.gl.bindFramebuffer(renderer.gl.FRAMEBUFFER, glLayer.framebuffer);
+
+            // Clear the framebuffer
+
+
+            renderer.gl.clearColor(0.0, 0.0, 1.0, 1.0);
+            renderer.gl.enable(renderer.gl.DEPTH_TEST);
+            renderer.gl.enable(renderer.gl.CULL_FACE);
+            renderer.gl.cullFace(renderer.gl.BACK);
+
+            renderer.gl.clear(renderer.gl.COLOR_BUFFER_BIT | renderer.gl.DEPTH_BUFFER_BIT);
+            
+            /*
+            if(!model){
+                if(loaded_buffer){
+                    //model = prepareModel(gl, loaded_buffer);
+                    model_pose = mat4.create();
+                    mat4.identity(model_pose);
+                    mat4.translate(model_pose, model_pose,[0,0,-0.5]);
+                }else{
+                    model = getTetra(gl, [0,0,-0.5],.1);
+                }
+            }
+
+            
+            
+            
+            if(!grip_cursor){
+                grip_cursor = getTetra(gl, [0,0,0],.02);
+            }*/
+
+            if(!renderer.model_pose){
+                renderer.model_pose = mat4.create();
+                mat4.identity(renderer.model_pose);
+                mat4.translate(renderer.model_pose, renderer.model_pose,[0,0,-0.5]);
+            }
+            
+            let any_grab = false;
+            
+            for (let inputSource of session.inputSources) {
+                let targetRayPose = frame.getPose(inputSource.targetRaySpace, renderer.xr_ref_space);
+                if(targetRayPose && inputSource.gripSpace){
+                    //console.log(inputSource);
+                    let grabbing = false; 
+                    if(inputSource.gamepad){
+                        for(let button of inputSource.gamepad.buttons){
+                            grabbing = grabbing || button.pressed;
+                            //console.log(button);
+                        }
+                    }
+                    any_grab = any_grab || grabbing ;
+                    
+                    let grip_pose = frame.getPose(inputSource.gripSpace, renderer.xr_ref_space).transform.matrix;
+                    // start of grab, fetch starting poses
+                    if(grabbing && !renderer.grab_pose){
+                        //console.log(inputSource);
+                        renderer.grab_pose = mat4.create();
+                        renderer.grab_pose.set(grip_pose);
+                        renderer.grab_model_pose = mat4.create();
+                        renderer.grab_model_pose.set(renderer.model_pose) ;
+                        //console.log("grabbed:");
+                        //console.log(renderer.grab_pose);
+                    }
+                    
+                    if(grabbing){
+                        //console.log("gripping:");
+                        //console.log(grip_pose);
+                        let MP = mat4.create();
+                        mat4.invert(MP, renderer.grab_pose); // TODO cache at grab time
+                        mat4.multiply(MP,grip_pose, MP);
+                        mat4.multiply(renderer.model_pose, MP, renderer.grab_model_pose);
+                        //console.log(renderer.model_pose);
+                        break ; // don't check next controllers
+                    }
+                    
+                }
+            }
+
+            if(!any_grab){// stopped grabbing, clear saved poses
+                renderer.grab_pose = null;
+                renderer.grab_model_pose = null;
+            }
+
+            // undo the model transformation for the light point so it doesn't move with the model
+            let lp = vec4.fromValues(renderer.light_point[0], renderer.light_point[1], renderer.light_point[2], 1);
+            let L = mat4.create();
+            mat4.invert(L, renderer.model_pose);
+            vec4.transformMat4(lp, lp, L);
+			renderer.gl.uniform3fv(renderer.shaderProgram.light_point, [lp[0], lp[1], lp[2]]);
+            //console.log(lp);
+            
+
+            for (let view of pose.views) {
+                let viewport = glLayer.getViewport(view);
+                renderer.gl.viewport(viewport.x, viewport.y,
+                            viewport.width, viewport.height);
+                //console.log("View matrix:");
+                //console.log(view.transform.inverse.matrix);
+
+                // Draw a scene using view.projectionMatrix as the projection matrix
+                // and view.transform to position the virtual camera. If you need a
+                // view matrix, use view.transform.inverse.matrix.
+
+                renderer.gl.uniformMatrix4fv(renderer.shaderProgram.pMatrixUniform, false, view.projectionMatrix);
+
+                let M = mat4.create();
+                mat4.multiply(M,view.transform.inverse.matrix, renderer.model_pose );
+                renderer.gl.uniformMatrix4fv(renderer.shaderProgram.mvMatrixUniform, false, M);
+                //drawModel(gl, model);
+                renderer.drawMeshes();
+                
+                for (let inputSource of session.inputSources) {
+                    let targetRayPose = frame.getPose(inputSource.targetRaySpace, renderer.xr_ref_space);
+                    if(targetRayPose && inputSource.gripSpace){
+                        let gripPose = frame.getPose(inputSource.gripSpace, renderer.xr_ref_space);
+                        if (gripPose) {
+                            let G = mat4.create();
+                            mat4.multiply(G,view.transform.inverse.matrix, gripPose.transform.matrix );
+                            renderer.gl.uniformMatrix4fv(renderer.shaderProgram.mvMatrixUniform, false, G);
+                            //drawModel(gl, grip_cursor);
+                        }
+                    }
+                }
+                
+            }
+
+        }
+
+    }
+    
+
 
 }
