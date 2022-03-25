@@ -1,6 +1,6 @@
 <html>
 <head>
-<title>Web Assembly Template</title>
+<title>GLB+VRM viewer</title>
 <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
 <style>
@@ -178,7 +178,9 @@ function canvasApp() {
             current_mode.timer();
         }
         draw();
-        requestAnimationFrame(timeListener);
+        if(!renderer.xr_session){ // TODO don't link timer to animation frame (attaching to animation frame lags VR!)
+            requestAnimationFrame(timeListener);
+        }
     }
 
 	function keyDownListener(evt) {
@@ -195,7 +197,7 @@ function canvasApp() {
 
     // Map touchevents
 	function touchHandler(event){
-		event.preventDefault();
+		//event.preventDefault();
 		var touches = event.touches;
 		var pointers = [];
 		for(let k=0;k<touches.length;k++){

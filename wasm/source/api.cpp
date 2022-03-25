@@ -65,7 +65,7 @@ byte* setModel(byte* ptr){
         
     }
     for(int k=0;k<model_global.vertices.size();k++){
-        model_global.vertices[k].position = (model_global.vertices[k].position-center)*(0.5f/size);
+        model_global.vertices[k].position = (model_global.vertices[k].position-center)*(1.0f/size);
     }
     //printf("Zoom:%f\n", zoom);
     map<string, Variant> ret_map;

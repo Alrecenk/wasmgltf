@@ -490,7 +490,7 @@ class Renderer{
             // Clear the framebuffer
 
 
-            renderer.gl.clearColor(0.0, 0.0, 1.0, 1.0);
+            renderer.gl.clearColor(renderer.bgColor[0]/255.0, renderer.bgColor[1]/255.0, renderer.bgColor[2]/255.0, 1.0);
             renderer.gl.enable(renderer.gl.DEPTH_TEST);
             renderer.gl.enable(renderer.gl.CULL_FACE);
             renderer.gl.cullFace(renderer.gl.BACK);
