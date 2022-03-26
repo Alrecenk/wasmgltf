@@ -19,6 +19,7 @@ using std::map;
 using glm::vec2;
 using glm::vec3;
 using glm::vec4;
+using glm::ivec4;
 using glm::mat4;
 typedef GLTF::Triangle Triangle;
 using std::string;
@@ -200,7 +201,7 @@ void GLTF::setModel(const byte* data, int data_length){
             string header = string((char *) (data + 20), JSON_length);
             //Variant::printJSON(s);
             json = Variant::parseJSON(header);
-            //json.printFormatted();
+            json.printFormatted();
             int bin_chunk_start = 20 + JSON_length ;
             
             if(bin_chunk_start %4 != 0){
@@ -217,6 +218,20 @@ void GLTF::setModel(const byte* data, int data_length){
                 for(int k=0;k<num_materials;k++){
                     addMaterial(k, json, bin);
                 }
+
+                if(json["skins"].defined()){
+                    printf("Found skins, mapping to nodes!\n");
+                    joint_to_node = map<int,map<int,int>>();
+                    vector<Variant> skins = json["skins"].getVariantArray();;
+                    for(int s = 0; s < skins.size(); s++){
+                        vector<Variant> skin_nodes = skins[s]["joints"].getVariantArray();
+                        joint_to_node[s] = map<int,int>();
+                        for(int k=0;k<skin_nodes.size();k++){
+                            joint_to_node[s][k] = (int)(skin_nodes[k].getNumberAsFloat());
+                        }
+                    }
+                }
+                
 
                 int default_scene = 0 ;
                 if(json["scene"].defined()){
@@ -302,7 +317,7 @@ GLTF::Accessor GLTF::access(int accessor_id, const Variant& json, const Variant&
 
 //TODO consider using quaternion down the hierarchy recursion instead of mat4 for better precision/speed.
 void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-                        const Variant& primitive, const glm::mat4& transform, const Variant& json, const Variant& bin){
+                        const Variant& primitive, int skin_id, const glm::mat4& transform, const Variant& json, const Variant& bin){
     //printf("Adding primitive:\n");
     //primitive.printFormatted();
     if(primitive["mode"].defined() && primitive["mode"].getInt() != 4){
@@ -347,6 +362,49 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
             has_texcoords = true;
             texcoords_data = ta.data.getFloatArray();
             //printf("Got Texture coordinates!\n");
+        }else{
+            printf("Texture coordinates are a weird type, skipping %s : %d \n" , ta.type.c_str(), ta.component_type);
+        }
+    }
+
+    bool has_weights = false;
+    GLTF::Accessor wa ;
+    GLTF:Accessor ja;
+    float* weight_data = nullptr; // still held by Variant, not a memory leak
+    uint* joint_data = nullptr; // careful, could leak memory
+    if(primitive["attributes"]["WEIGHTS_0"].defined()){
+        wa = GLTF::access(primitive["attributes"]["WEIGHTS_0"].getInt(), json, bin);
+        ja = GLTF::access(primitive["attributes"]["JOINTS_0"].getInt(), json, bin);
+        if(wa.type == "VEC4" && wa.component_type == 5126){
+            has_weights = true;
+            weight_data = wa.data.getFloatArray();
+            if(ja.component_type == 5123){
+                printf("unsigned short joints\n");
+                int num_joints = ja.data.getArrayLength() ;
+                short* shorts = ja.data.getShortArray();
+                joint_data = (uint*)malloc(4*num_joints);
+                for(int k=0;k<num_joints;k++){
+                    joint_data[k] = (unsigned short)shorts[k];
+                }
+            }else if(ja.component_type == 5125){
+                printf("unsigned int joints\n");
+                int num_joints = ja.data.getArrayLength() ;
+                int* ints = ja.data.getIntArray();
+                joint_data = (uint*)malloc(4*num_joints);
+                for(int k=0;k<num_joints;k++){
+                    joint_data[k] = (unsigned int)ints[k];
+                }
+            }else if(ja.component_type == 5121){
+                printf("unsigned byte joints\n");
+                int num_joints = ja.data.getArrayLength() ;
+                byte* bytes = ja.data.getByteArray();
+                joint_data = (uint*)malloc(4*num_joints);
+                for(int k=0;k<num_joints;k++){
+                    joint_data[k] = bytes[k];
+                }
+            }else{
+                printf("joint comkponent type unsafe: %d \n " , ja.component_type);
+            }
         }else{
             printf("Texture coordinates are a weird type, skipping %s : %d \n" , ta.type.c_str(), ta.component_type);
         }
@@ -412,10 +470,10 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
     
     vec3 mat_color = vec3(1,1,1);
     Variant iv = json["materials"][material]["pbrMetallicRoughness"]["baseColorTexture"]["index"] ;
-    int image = -1;
+    //int image = -1;
     if(iv.defined()){
         //printf("Found mesh primitive texture!\n");
-        image = iv.getInt();
+        //image = iv.getInt();
         
         //printf("texture in primitive  %d x%d \n ", img.width, img.height);
     }else{
@@ -428,11 +486,8 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
         }
     }
 
-    
-
-    
-    
     for(int k=0;k<num_vertices;k++){
+        
         //printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
         vec3 v_local = vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]) ;
         vec4 v_global = transform*vec4(v_local,1);
@@ -447,30 +502,17 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
         }
         if(has_texcoords){
             v.tex_coord = vec2(texcoords_data[2*k], texcoords_data[2*k+1]) ;
-            /*
-            if(image >= 0){
-                //printf("tex coords: %f, %f\n", v.tex_coord[0],v.tex_coord[1]);
-                Image &img = this->images[image];
-                byte* image_bytes = img.data.getByteArray() ;
-                //printf("texture  %d x%d \n ", img.width, img.height);
-                int x = (int)(img.width * v.tex_coord[0]) ;
-                int y = (int)(img.height * v.tex_coord[1]) ;
-                //printf("pixel %d, %d \n ", x, y);
-                
-                byte r = image_bytes[(y*img.width + x)*img.channels];
-                byte g = image_bytes[(y*img.width + x)*img.channels+1];
-                byte b = image_bytes[(y*img.width + x)*img.channels+2];
-                //printf("color %d, %d, %d \n ", r,g,b);
-                
-                //printf(" f color %f, %f, %f \n ", v.color_mult.r,v.color_mult.g,v.color_mult.b);
-
-            }
-            */
+        }
+        if(has_weights){
+            v.weights = vec4(weight_data[4*k], weight_data[4*k+1], weight_data[4*k+2], weight_data[4*k+3]) ;
+            v.joints = ivec4(joint_to_node[skin_id][joint_data[4*k]],
+                            joint_to_node[skin_id][joint_data[4*k+1]],
+                            joint_to_node[skin_id][joint_data[4*k+2]],
+                            joint_to_node[skin_id][joint_data[4*k+3]]) ;
         }
         vertices.push_back(v);
     }
 
-    
     for(int k=0;k<num_indices;k+=3){
         //printf("Triangle: %d , %d , %d\n", (int)index_data[k]+start_vertices, (int)index_data[k+1]+start_vertices,(int)index_data[k+2]+start_vertices);
         triangles.push_back({(int)index_data[k]+start_vertices,
@@ -479,7 +521,11 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
                         material});
     }
 
+
     free(index_data);
+    if(joint_data != nullptr){
+        free(joint_data);
+    }
 }
 
 void GLTF::addMaterial(int material_id, const Variant& json, const Variant& bin){
@@ -531,16 +577,6 @@ void GLTF::addMaterial(int material_id, const Variant& json, const Variant& bin)
             mat.texture = false;
         }
 
-        /* TODO
-        extensions:{ 
-            KHR_materials_pbrSpecularGlossiness:{ 
-                diffuseFactor:[0.612066,0.425905,0.022013,1.000000], 
-                glossinessFactor:0.486275, 
-                specularFactor:[0.028991,0.019918,0.000992] 
-            } 
-        } 
-        */
-
         this->materials[material_id] = mat ;
         this->buffers_changed = true;
     }
@@ -578,14 +614,13 @@ void GLTF::addImage(int image_id, const Variant& json, const Variant& bin){
     }
 }
 
-
 void GLTF::addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-                   int mesh_id, const glm::mat4& transform, const Variant& json, const Variant& bin){
+                   int mesh_id, int skin_id, const glm::mat4& transform, const Variant& json, const Variant& bin){
     //printf("Adding mesh %d!\n", mesh_id);
 
     auto primitives = json["meshes"][mesh_id]["primitives"];
     for(int k=0;k<primitives.getArrayLength();k++){
-        addPrimitive(vertices, triangles, primitives[k], transform, json, bin);
+        addPrimitive(vertices, triangles, primitives[k], skin_id, transform, json, bin);
     }
 }
 
@@ -594,57 +629,37 @@ void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangl
     //printf("Adding node %d!\n", node_id);
     auto node = json["nodes"][node_id];
 
+    if(node["name"].defined()){
+        node_name[node_id] = node["name"].getString();
+    }
+
     mat4 new_transform = transform ;
     if(node["matrix"].defined()){
         printf("Node has matrix not yet implemented!\n");
         //new_transform *= M;
     }else{
-        /*
-        printf("Initial transform:\n");
-            for(int k=0;k<4;k++){
-                printf("[ %f, %f, %f, %f]\n", new_transform[k][0], new_transform[k][1], new_transform[k][2], new_transform[k][3]);
-            }
-            */
-
         Variant tv = node["translation"];
         if(tv.defined()){
             vec3 t = vec3(tv[0].getNumberAsFloat(), tv[1].getNumberAsFloat(), tv[2].getNumberAsFloat());
             new_transform = glm::translate(new_transform, t);
-            /*
-            printf("After translate:\n");
-            for(int k=0;k<4;k++){
-                printf("[ %f, %f, %f, %f]\n", new_transform[k][0], new_transform[k][1], new_transform[k][2], new_transform[k][3]);
-            }
-            */
         }
         Variant rv = node["rotation"] ;
         if(rv.defined()){
             // GLB is XYZW but GLM:quat is WXYZ
             glm::quat qrot(rv[3].getNumberAsFloat(), rv[0].getNumberAsFloat(), rv[1].getNumberAsFloat(), rv[2].getNumberAsFloat() );
             new_transform *= glm::mat4_cast(qrot);
-            /*
-            printf("After rotate:\n");
-            for(int k=0;k<4;k++){
-                printf("[ %f, %f, %f, %f]\n", new_transform[k][0], new_transform[k][1], new_transform[k][2], new_transform[k][3]);
-            }
-            */
         }
         Variant sv = node["scale"];
         if(sv.defined()){
             vec3 s = vec3(sv[0].getNumberAsFloat(), sv[1].getNumberAsFloat(), sv[2].getNumberAsFloat());
             new_transform = glm::scale(new_transform, s);
-            /*
-            printf("After scale:\n");
-            for(int k=0;k<4;k++){
-                printf("[ %f, %f, %f, %f]\n", new_transform[k][0], new_transform[k][1], new_transform[k][2], new_transform[k][3]);
-            }
-            */
         }
     }
     
     if(node["mesh"].defined()){
         int mesh_id = node["mesh"].getInt();
-        addMesh(vertices, triangles, mesh_id, new_transform, json, bin);
+        int skin_id = node["skin"].defined() ? node["skin"].getInt() : 0;
+        addMesh(vertices, triangles, mesh_id, skin_id, new_transform, json, bin);
     }
     if(node["children"].defined()){
         auto nodes = node["children"];

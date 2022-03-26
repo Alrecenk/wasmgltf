@@ -136,6 +136,16 @@ byte* scan(byte* ptr){
         if(model_global.json["materials"][material_id].defined()){
             model_global.json["materials"][material_id].printFormatted();
         }
+        
+        glm::ivec4 joints = model_global.vertices[tri.A].joints;
+        for(int k=0;k<4;k++){
+            int n = model_global.vertices[tri.A].joints[k];
+            string name = model_global.node_name[n];
+            float w = model_global.vertices[tri.A].weights[k] ;
+            if(w > 0){
+                printf("Joint[%d] = %d (%s)  weight: %f\n", k, n, name.c_str(), w);
+            }
+        }
     }
     return emptyReturn();
 }
