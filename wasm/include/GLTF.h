@@ -25,6 +25,12 @@ class GLTF{
             glm::vec3 normal = {0, 0, 0};
             glm::vec2 tex_coord = {0, 0};
             glm::vec3 color_mult = {1.0f, 1.0f, 1.0f};
+
+            glm::ivec4 joints ; // Nodes this vertex is skinned to if any
+            glm::vec4 weights ; // weights gfore each skinning node
+            glm::vec3 base_position = {0, 0, 0}; // position in linear skin local space
+            glm::vec3 base_normal = {0, 0, 0};
+            
         };
 
         struct Triangle{
@@ -55,6 +61,8 @@ class GLTF{
 
         Variant json;
         Variant bin;
+        std::map<int,std::map<int,int>> joint_to_node ; // joint_to_node[skin_id][joint_index] -> node_id
+        std::map<int,std::string> node_name ;
 
 
         //int num_vertices;
@@ -88,10 +96,10 @@ class GLTF{
         void setModel(const std::vector<Vertex>& vertices, const std::vector<Triangle>& triangles);
 
         void addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-            const Variant& primitive, const glm::mat4& transform, const Variant& json, const Variant& bin);
+            const Variant& primitive, int skin_id, const glm::mat4& transform, const Variant& json, const Variant& bin);
 
         void addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-            int mesh_id, const glm::mat4& transform, const Variant& json, const Variant& bin);
+            int mesh_id, int skin_id, const glm::mat4& transform, const Variant& json, const Variant& bin);
 
         void addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
             int node_id, const glm::mat4& transform, const Variant& json, const Variant& bin);
