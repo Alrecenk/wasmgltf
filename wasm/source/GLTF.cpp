@@ -21,6 +21,8 @@ using glm::vec3;
 using glm::vec4;
 using glm::ivec4;
 using glm::mat4;
+using glm::dmat4;
+using glm::dvec3;
 typedef GLTF::Triangle Triangle;
 using std::string;
 using std::queue;
@@ -219,9 +221,11 @@ void GLTF::setModel(const byte* data, int data_length){
                     addMaterial(k, json, bin);
                 }
 
+                joint_to_node = map<int,map<int,int>>();
+                nodes = map<int,Node>();
+                root_nodes = vector<int>();
+
                 if(json["skins"].defined()){
-                    printf("Found skins, mapping to nodes!\n");
-                    joint_to_node = map<int,map<int,int>>();
                     vector<Variant> skins = json["skins"].getVariantArray();;
                     for(int s = 0; s < skins.size(); s++){
                         vector<Variant> skin_nodes = skins[s]["joints"].getVariantArray();
@@ -509,6 +513,8 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
                             joint_to_node[skin_id][joint_data[4*k+1]],
                             joint_to_node[skin_id][joint_data[4*k+2]],
                             joint_to_node[skin_id][joint_data[4*k+3]]) ;
+            float scale = 1.0/(v.weights[0] + v.weights[1]+v.weights[2] + v.weights[3]);
+            v.weights *= scale; ;
         }
         vertices.push_back(v);
     }
@@ -628,9 +634,9 @@ void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangl
                    int node_id, const glm::mat4& transform, const Variant& json, const Variant& bin){
     //printf("Adding node %d!\n", node_id);
     auto node = json["nodes"][node_id];
-
+    Node& node_struct = nodes[node_id];
     if(node["name"].defined()){
-        node_name[node_id] = node["name"].getString();
+        node_struct.name = node["name"].getString();
     }
 
     mat4 new_transform = transform ;
@@ -641,17 +647,20 @@ void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangl
         Variant tv = node["translation"];
         if(tv.defined()){
             vec3 t = vec3(tv[0].getNumberAsFloat(), tv[1].getNumberAsFloat(), tv[2].getNumberAsFloat());
+            node_struct.translation = t;
             new_transform = glm::translate(new_transform, t);
         }
         Variant rv = node["rotation"] ;
         if(rv.defined()){
             // GLB is XYZW but GLM:quat is WXYZ
             glm::quat qrot(rv[3].getNumberAsFloat(), rv[0].getNumberAsFloat(), rv[1].getNumberAsFloat(), rv[2].getNumberAsFloat() );
+            node_struct.rotation = qrot;
             new_transform *= glm::mat4_cast(qrot);
         }
         Variant sv = node["scale"];
         if(sv.defined()){
             vec3 s = vec3(sv[0].getNumberAsFloat(), sv[1].getNumberAsFloat(), sv[2].getNumberAsFloat());
+            node_struct.scale = s;
             new_transform = glm::scale(new_transform, s);
         }
     }
@@ -664,8 +673,9 @@ void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangl
     if(node["children"].defined()){
         auto nodes = node["children"];
         for(int k=0;k<nodes.getArrayLength();k++){
-            int node_id = nodes[k].getInt();
-            addNode(vertices, triangles, node_id, new_transform, json, bin);
+            int child_id = nodes[k].getInt();
+            node_struct.children.push_back(child_id);
+            addNode(vertices, triangles, child_id, new_transform, json, bin);
         }
     }
 }
@@ -677,6 +687,7 @@ void GLTF::addScene(std::vector<Vertex>& vertices, std::vector<Triangle>& triang
     glm::mat4 ident(1);
     for(int k=0;k<nodes.getArrayLength();k++){
         int node_id = nodes[k].getInt();
+        root_nodes.push_back(node_id);
         addNode(vertices, triangles, node_id, ident, json, bin);
     }
 }
@@ -725,7 +736,9 @@ void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Trian
         if(v.y > this->max.y)this->max.y = v.y;
         if(v.z > this->max.z)this->max.z = v.z;
     }
-
+    computeBaseVertices();
+    //nodes[74].rotation *= glm::quat(vec3(1.5,-0.2,-1.15));
+    //applyNodeTransforms();
     this->buffers_changed = true;
 }
 
@@ -810,6 +823,61 @@ void GLTF::paint(const vec3 &center, const float &radius, const vec3 &color){
             if(this->vertices[k].color_mult.x != color.x || this->vertices[k].color_mult.y != color.y || this->vertices[k].color_mult.z != color.z ){
                 this->vertices[k].color_mult = color;
                 this->buffers_changed = true;
+            }
+        }
+    }
+}
+
+
+// Computes absolute node matrices from their componentsand nesting
+void GLTF::computeNodeMatrices(int node_id, const glm::mat4& transform){
+    Node& node = nodes[node_id];
+    node.absolute_transform = transform ;
+    node.absolute_transform = glm::translate(node.absolute_transform, dvec3(node.translation));
+    node.absolute_transform *= dmat4(glm::mat4_cast(node.rotation));
+    node.absolute_transform = glm::scale(node.absolute_transform, dvec3(node.scale));
+    for(int k=0;k<node.children.size();k++){
+        computeNodeMatrices(node.children[k], node.absolute_transform);
+    }
+}
+
+ // Computes base vertices for skinned vertices so they can later use apply node transforms
+void GLTF::computeBaseVertices(){
+    for(int k=0;k<root_nodes.size();k++){
+        computeNodeMatrices(root_nodes[k], glm::mat4(1.0f));
+    } 
+    for(int k=0;k<vertices.size();k++){
+        Vertex& v = vertices[k];
+        v.base_position = vector<vec3>();
+        v.base_normal = vector<vec3>();
+        for(int j=0;j<4;j++){
+            v.base_position.push_back({0,0,0});
+            v.base_normal.push_back({0,0,0});
+            if(v.weights[j] > 0){
+                dmat4 transform = nodes[v.joints[j]].absolute_transform;
+                dmat4 inv = glm::inverse(transform);
+                v.base_position[j] = vec3(inv *  vec4(v.position, 1)) ;
+                v.base_normal[j] = vec3(inv* vec4(v.normal, 0));
+            }
+
+        }
+    }
+}
+
+// Applies current absolute node matrices to skinned vertices
+void GLTF::applyNodeTransforms(){
+    for(int k=0;k<root_nodes.size();k++){
+        computeNodeMatrices(root_nodes[k], glm::mat4(1.0f));
+    } 
+    for(int k=0;k<vertices.size();k++){
+        Vertex& v = vertices[k];
+        v.position = {0,0,0};
+        v.normal = {0,0,0};
+        for(int j=0;j<4;j++){
+            if(v.weights[j] > 0){
+                dmat4 transform = nodes[v.joints[j]].absolute_transform ;
+                v.position += vec3(transform * vec4(v.base_position[j], 1)) * v.weights[j];
+                v.normal += vec3(transform * vec4(v.base_normal[j], 0)) * v.weights[j];
             }
         }
     }
