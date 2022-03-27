@@ -21,15 +21,15 @@ class GLTF{
         };
 
         struct Vertex{
-            glm::vec3 position = {0, 0, 0};
-            glm::vec3 normal = {0, 0, 0};
+            glm::vec3 position = {0, 0, 0}; // position in global space
+            glm::vec3 normal = {0, 0, 0}; // normal in global space
             glm::vec2 tex_coord = {0, 0};
             glm::vec3 color_mult = {1.0f, 1.0f, 1.0f};
 
             glm::ivec4 joints ; // Nodes this vertex is skinned to if any
-            glm::vec4 weights ; // weights gfore each skinning node
-            glm::vec3 base_position = {0, 0, 0}; // position in linear skin local space
-            glm::vec3 base_normal = {0, 0, 0};
+            glm::vec4 weights ; // weights for each skinning node
+            std::vector<glm::vec3> base_position ; // position in linear skin local space
+            std::vector<glm::vec3> base_normal ; //notmal in linjear skin local space
             
         };
 
@@ -58,11 +58,23 @@ class GLTF{
             Variant data; // byte array
         };
 
+        struct Node{
+            std::string name="" ;
+            std::vector<int> children ;
+            // Local transform is in components
+            glm::quat rotation = {1.0f, 0.0f, 0.0f, 0.0f};
+            glm::vec3 scale = {1.0f,1.0f,1.0f};
+            glm::vec3 translation = {0.0f, 0.0f, 0.0f};
+            // global transform computed from components
+            glm::dmat4 absolute_transform;
+        };
+
 
         Variant json;
         Variant bin;
         std::map<int,std::map<int,int>> joint_to_node ; // joint_to_node[skin_id][joint_index] -> node_id
-        std::map<int,std::string> node_name ;
+        std::map<int,Node> nodes ;
+        std::vector<int> root_nodes ;
 
 
         //int num_vertices;
@@ -113,6 +125,14 @@ class GLTF{
 
         void addImage(int image_id, const Variant& json, const Variant& bin);
 
+        // Computes absolute node matrices from their componentsand nesting
+        void computeNodeMatrices(int node_id, const glm::mat4& transform);
+        
+        // Computes base vertices for skinned vertices so they can later use apply node transforms
+        void computeBaseVertices();
+
+        // Applies current absolute node matrices to skinned vertices
+        void applyNodeTransforms();
 
         // hashes a vertex to allow duplicates to be detected
         int hashVertex(glm::vec3 v);
@@ -127,6 +147,7 @@ class GLTF{
         // Changes all vertices within radius of origin to the given color
         void paint(const glm::vec3 &center, const float &radius, const glm::vec3 &color);
 
+
     private:
         // Performs the duplicate work for the various get vertex buffer functions
         Variant getFloatBuffer(std::vector<glm::vec3>& ptr, int material);
@@ -139,6 +160,9 @@ class GLTF{
         // with the given triangle
         // return negative if no collision
         float trace(Triangle tri, const glm::vec3 &p, const glm::vec3 &v);
+
+        
+        
 
 };
 #endif // #ifndef _TRIANGLE_MESH_H_

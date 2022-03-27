@@ -64,9 +64,11 @@ byte* setModel(byte* ptr){
         size = fmax(size , abs(model_global.min[k]-center[k]));
         
     }
+    
     for(int k=0;k<model_global.vertices.size();k++){
         model_global.vertices[k].position = (model_global.vertices[k].position-center)*(1.0f/size);
     }
+    
     //printf("Zoom:%f\n", zoom);
     map<string, Variant> ret_map;
     ret_map["center"] = Variant(center);
@@ -137,15 +139,18 @@ byte* scan(byte* ptr){
             model_global.json["materials"][material_id].printFormatted();
         }
         
-        glm::ivec4 joints = model_global.vertices[tri.A].joints;
+        GLTF::Vertex& v = model_global.vertices[tri.A];
+        glm::ivec4 joints = v.joints;
         for(int k=0;k<4;k++){
-            int n = model_global.vertices[tri.A].joints[k];
-            string name = model_global.node_name[n];
-            float w = model_global.vertices[tri.A].weights[k] ;
+            int n = v.joints[k];
+            string name = model_global.nodes[n].name;
+            float w = v.weights[k] ;
             if(w > 0){
                 printf("Joint[%d] = %d (%s)  weight: %f\n", k, n, name.c_str(), w);
             }
         }
+
+        //printf("Local Position: %f, %f, %f \n" , v.base_position.x, v.base_position.y, v.base_position.z);
     }
     return emptyReturn();
 }
