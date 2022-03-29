@@ -23,7 +23,6 @@ EXPORTED_FUNCTIONS =[\
 	'_setModel', \
 	'_getUpdatedBuffers', \
 	'_rayTrace', \
-	'_paint', \
 	'_scan', \
 	'_testAllocate', \
 	'_malloc', \

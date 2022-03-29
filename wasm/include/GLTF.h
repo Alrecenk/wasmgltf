@@ -26,10 +26,10 @@ class GLTF{
             glm::vec2 tex_coord = {0, 0};
             glm::vec3 color_mult = {1.0f, 1.0f, 1.0f};
 
-            glm::ivec4 joints ; // Nodes this vertex is skinned to if any
-            glm::vec4 weights ; // weights for each skinning node
-            std::vector<glm::vec3> base_position ; // position in linear skin local space
-            std::vector<glm::vec3> base_normal ; //notmal in linjear skin local space
+            glm::ivec4 joints = {0,0,0,0}; // Nodes this vertex is skinned to if any
+            glm::vec4 weights = {0,0,0,0}; // weights for each skinning node
+            std::vector<glm::vec4> base_position ; // position in linear skin local space
+            std::vector<glm::vec4> base_normal ; //notmal in linjear skin local space
             
         };
 
@@ -66,7 +66,7 @@ class GLTF{
             glm::vec3 scale = {1.0f,1.0f,1.0f};
             glm::vec3 translation = {0.0f, 0.0f, 0.0f};
             // global transform computed from components
-            glm::dmat4 absolute_transform;
+            glm::mat4 absolute_transform;
         };
 
 
@@ -74,7 +74,10 @@ class GLTF{
         Variant bin;
         std::map<int,std::map<int,int>> joint_to_node ; // joint_to_node[skin_id][joint_index] -> node_id
         std::map<int,Node> nodes ;
+        int max_node_id;
         std::vector<int> root_nodes ;
+        glm::mat4 transform;
+        
 
 
         //int num_vertices;
@@ -89,7 +92,8 @@ class GLTF{
         std::map<int,Image> images;
         glm::vec3 min; // minimum values in each axis part of AABB
         glm::vec3 max; // maximum values in each axis part of AABB
-        bool buffers_changed = false;
+        bool position_changed = false;
+        bool model_changed = false;
         int last_traced_tri ; // Index of last triangle hit by raytrace
 
         // Constructor
@@ -132,7 +136,7 @@ class GLTF{
         void computeBaseVertices();
 
         // Applies current absolute node matrices to skinned vertices
-        void applyNodeTransforms();
+        void applyTransforms();
 
         // hashes a vertex to allow duplicates to be detected
         int hashVertex(glm::vec3 v);

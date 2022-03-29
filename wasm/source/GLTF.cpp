@@ -21,8 +21,6 @@ using glm::vec3;
 using glm::vec4;
 using glm::ivec4;
 using glm::mat4;
-using glm::dmat4;
-using glm::dvec3;
 typedef GLTF::Triangle Triangle;
 using std::string;
 using std::queue;
@@ -30,7 +28,8 @@ using std::queue;
 
 // Constructor
 GLTF::GLTF(){
-    this->buffers_changed = false;
+    this->position_changed = false;
+    this->model_changed = false;
 }
 
 //Destructor
@@ -128,51 +127,111 @@ Variant GLTF::getFloatBuffer(std::vector<glm::vec2>& point_list, int material){
 // Returns a Variant of openGL triangle buffers for displaying this mesh_ in world_ space
 
 Variant GLTF::getChangedBuffer(int selected_material){
+   
+   
     std::map<string, Variant> buffers;
-
-    vector<vec3> position ;
-    vector<vec3> normal ;
-    vector<vec2> tex_coord;
-    for(const auto& v : this->vertices){
-        position.push_back(v.position);
-        normal.push_back(v.normal);
-        tex_coord.push_back(v.tex_coord);
-    }
     
 
-    buffers["position"] = this->getFloatBuffer(position, selected_material);
-    buffers["normal"] = this->getFloatBuffer(normal, selected_material);
-    buffers["tex_coord"] = this->getFloatBuffer(tex_coord, selected_material);
-    
 
-    vector<vec3> color ;
-    for(const auto& v : this->vertices){
-        color.push_back(v.color_mult);
+    int num_triangles = 0 ;
+    for(int k=0;k<this->triangles.size();k++){
+        if(this->triangles[k].material == selected_material){
+            num_triangles++;
+        }
     }
 
-    buffers["color"] = this->getFloatBuffer(color, selected_material);
+    buffers["vertices"] = Variant(num_triangles*3);
+
+    //TODO this access pattern prevents these Variant members from being private 
+    // but using the constructor forces a copy that isn't necesarry 
+    // Maybe here should be an array constructor that just takes type and size
+    // and then the get array provides a shallow pointer that can't be freed?
+    Variant& pos_buffer = buffers["position"];
+    pos_buffer.type_ = Variant::FLOAT_ARRAY;
+    pos_buffer.ptr = (byte*)malloc(4 + num_triangles * 9 * sizeof(float));
+    
+    *((int*)pos_buffer.ptr) = num_triangles * 9 ;// number of floats in array
+    float* pos_buffer_array =  (float*)(pos_buffer.ptr+4) ; // pointer to start of float array
+
+    
+    Variant& norm_buffer = buffers["normal"];
+    norm_buffer.type_ = Variant::FLOAT_ARRAY;
+    norm_buffer.ptr = (byte*)malloc(4 + num_triangles * 9 * sizeof(float));
+    
+    *((int*)norm_buffer.ptr) = num_triangles * 9 ;// number of floats in array
+    float* norm_buffer_array =  (float*)(norm_buffer.ptr+4) ; // pointer to start of float array
+    
+    int j9 = 0 ;
+    for(int k=0;k<this->triangles.size();k++){
+        if(this->triangles[k].material == selected_material){
+            Triangle& t = this->triangles[k];
+            // A
+            vec3& A = vertices[t.A].position;
+            pos_buffer_array[j9] = A.x;
+            pos_buffer_array[j9+1] = A.y;
+            pos_buffer_array[j9+2] = A.z;
+            // B
+            vec3& B = vertices[t.B].position;
+            pos_buffer_array[j9+3] = B.x;
+            pos_buffer_array[j9+4] = B.y;
+            pos_buffer_array[j9+5] = B.z;
+            // C
+            vec3& C = vertices[t.C].position;
+            pos_buffer_array[j9+6] = C.x;
+            pos_buffer_array[j9+7] = C.y;
+            pos_buffer_array[j9+8] = C.z;
+
+            
+            // A
+            vec3& A2 = vertices[t.A].normal;
+            norm_buffer_array[j9] = A2.x;
+            norm_buffer_array[j9+1] = A2.y;
+            norm_buffer_array[j9+2] = A2.z;
+            // B
+            vec3& B2 = vertices[t.B].normal;
+            norm_buffer_array[j9+3] = B2.x;
+            norm_buffer_array[j9+4] = B2.y;
+            norm_buffer_array[j9+5] = B2.z;
+            // C
+            vec3& C2 = vertices[t.C].normal;
+            norm_buffer_array[j9+6] = C2.x;
+            norm_buffer_array[j9+7] = C2.y;
+            norm_buffer_array[j9+8] = C2.z;
+            
+            j9+=9;
+        }
+    }    
+
+    if(this->model_changed){
+        vector<vec3> color ;
+        vector<vec2> tex_coord;
+        for(const auto& v : this->vertices){
+            color.push_back(v.color_mult);
+            tex_coord.push_back(v.tex_coord);
+        }
+
+        buffers["color"] = this->getFloatBuffer(color, selected_material);
+        buffers["tex_coord"] = this->getFloatBuffer(tex_coord, selected_material);    
+
+        const auto& mat = this->materials[selected_material] ;
+        map<string,Variant> mat_map;
+        mat_map["color"] = Variant(mat.color);
+        mat_map["metallic"] = Variant(mat.roughness);
+        mat_map["roughness"] = Variant(mat.roughness);
+        mat_map["name"] = Variant(mat.name) ;
+        mat_map["double_sided"] = Variant(mat.double_sided ? 1 : 0);
+        mat_map["has_texture"] = Variant(mat.texture ? 1: 0);
+        if(mat.texture){
+            const Image& img = this->images[mat.image];
+            mat_map["image_name"] = Variant(img.name);
+            mat_map["image_width"] = Variant(img.width) ;
+            mat_map["image_height"] = Variant(img.height) ;
+            mat_map["image_channels"] = Variant(img.channels);
+            mat_map["image_data"] = img.data.clone();
+        }
         
-    
-    buffers["vertices"] = Variant((int)(buffers["color"].getArrayLength()/3));
-
-    const auto& mat = this->materials[selected_material] ;
-    map<string,Variant> mat_map;
-    mat_map["color"] = Variant(mat.color);
-    mat_map["metallic"] = Variant(mat.roughness);
-    mat_map["roughness"] = Variant(mat.roughness);
-    mat_map["name"] = Variant(mat.name) ;
-    mat_map["double_sided"] = Variant(mat.double_sided ? 1 : 0);
-    mat_map["has_texture"] = Variant(mat.texture ? 1: 0);
-    if(mat.texture){
-        const Image& img = this->images[mat.image];
-        mat_map["image_name"] = Variant(img.name);
-        mat_map["image_width"] = Variant(img.width) ;
-        mat_map["image_height"] = Variant(img.height) ;
-        mat_map["image_channels"] = Variant(img.channels);
-        mat_map["image_data"] = img.data.clone();
+        buffers["material"] = Variant(mat_map);
     }
-    
-    buffers["material"] = Variant(mat_map);
 
     return Variant(buffers);
 }
@@ -183,22 +242,26 @@ void GLTF::setModel(const byte* data, int data_length){
     vector<Triangle> new_triangles;
     this->materials.clear();
     this->images.clear();
+    joint_to_node = map<int,map<int,int>>();
+    nodes = map<int,Node>();
+    max_node_id = 0 ;
+    root_nodes = vector<int>();
 
-    printf ("num bytes: %d \n", data_length);
-    printf("GLB Magic: %u  JSON_CHUNK: %u\n", 0x46546C67, 0x4E4F534A);
+    //printf ("num bytes: %d \n", data_length);
+    //printf("GLB Magic: %u  JSON_CHUNK: %u\n", 0x46546C67, 0x4E4F534A);
     uint magic_num = *(uint *)data;
 
     if(magic_num == 0x46546C67){ // check if GLTF
         uint version = *(int *)(data + 4);
         uint total_length = *(int *)(data + 8);
         printf("GLB file detected. Version : %u  Data Length: %u\n", version, total_length);
-        printf("File Length %d\n", data_length);
+        //printf("File Length %d\n", data_length);
 
         uint JSON_length = *((uint *) (data + 12));// in bytes, not necessarily characters
         uint first_chunk_type = *((uint *) (data + 16));
         
         if(first_chunk_type == 0x4E4F534A){
-            printf("JSON chunk found!\n");
+            //printf("JSON chunk found!\n");
 
             string header = string((char *) (data + 20), JSON_length);
             //Variant::printJSON(s);
@@ -212,18 +275,14 @@ void GLTF::setModel(const byte* data, int data_length){
             uint bin_length = *((uint*)(data+bin_chunk_start)) ;
             uint second_chunk_type = *((uint*)(data+bin_chunk_start+4)) ;
             if(second_chunk_type == 0x004E4942){
-                printf("Bin chunk found!\n");
-                printf("Bin size: %d \n", bin_length);
+                //printf("Bin chunk found!\n");
+                //printf("Bin size: %d \n", bin_length);
                 bin = Variant(data+bin_chunk_start+8, bin_length);
 
                 int num_materials = json["materials"].getArrayLength();
                 for(int k=0;k<num_materials;k++){
                     addMaterial(k, json, bin);
                 }
-
-                joint_to_node = map<int,map<int,int>>();
-                nodes = map<int,Node>();
-                root_nodes = vector<int>();
 
                 if(json["skins"].defined()){
                     vector<Variant> skins = json["skins"].getVariantArray();;
@@ -232,6 +291,7 @@ void GLTF::setModel(const byte* data, int data_length){
                         joint_to_node[s] = map<int,int>();
                         for(int k=0;k<skin_nodes.size();k++){
                             joint_to_node[s][k] = (int)(skin_nodes[k].getNumberAsFloat());
+                            //printf("Joint to node %d, %d = %d \n", s, k , joint_to_node[s][k]);
                         }
                     }
                 }
@@ -257,8 +317,6 @@ void GLTF::setModel(const byte* data, int data_length){
     }else{
         printf("Not a GLB file! %d != %d\n", magic_num, 0x46546C67);
     }
-    
-    printf("Total triangles: %d\n",(int) new_triangles.size());
     setModel(new_vertices, new_triangles);
 
 }
@@ -383,7 +441,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
             has_weights = true;
             weight_data = wa.data.getFloatArray();
             if(ja.component_type == 5123){
-                printf("unsigned short joints\n");
+                //printf("unsigned short joints\n");
                 int num_joints = ja.data.getArrayLength() ;
                 short* shorts = ja.data.getShortArray();
                 joint_data = (uint*)malloc(4*num_joints);
@@ -391,7 +449,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
                     joint_data[k] = (unsigned short)shorts[k];
                 }
             }else if(ja.component_type == 5125){
-                printf("unsigned int joints\n");
+                //printf("unsigned int joints\n");
                 int num_joints = ja.data.getArrayLength() ;
                 int* ints = ja.data.getIntArray();
                 joint_data = (uint*)malloc(4*num_joints);
@@ -399,7 +457,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
                     joint_data[k] = (unsigned int)ints[k];
                 }
             }else if(ja.component_type == 5121){
-                printf("unsigned byte joints\n");
+                //printf("unsigned byte joints\n");
                 int num_joints = ja.data.getArrayLength() ;
                 byte* bytes = ja.data.getByteArray();
                 joint_data = (uint*)malloc(4*num_joints);
@@ -407,10 +465,10 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
                     joint_data[k] = bytes[k];
                 }
             }else{
-                printf("joint comkponent type unsafe: %d \n " , ja.component_type);
+                printf("joint component type unsafe: %d \n " , ja.component_type);
             }
         }else{
-            printf("Texture coordinates are a weird type, skipping %s : %d \n" , ta.type.c_str(), ta.component_type);
+            printf("Weights are a weird type, skipping %s : %d \n" , ta.type.c_str(), ta.component_type);
         }
     }
 
@@ -584,7 +642,7 @@ void GLTF::addMaterial(int material_id, const Variant& json, const Variant& bin)
         }
 
         this->materials[material_id] = mat ;
-        this->buffers_changed = true;
+        this->model_changed = true;
     }
 }
 
@@ -598,11 +656,11 @@ void GLTF::addImage(int image_id, const Variant& json, const Variant& bin){
         }
         //i_json.printFormatted();
         if(i_json["name"].defined()){
-            printf("Got name!\n");
+            //printf("Got name!\n");
             img.name = i_json["name"].getString();
         }
         if(!json["bufferViews"][i_json["bufferView"]].defined()){
-            printf("No buffer view on image, external resurcs not supported, aborting texture load.\n");
+            printf("No buffer view on image, external resources not supported, aborting texture load.\n");
             return ;
         }
 
@@ -635,6 +693,7 @@ void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangl
     //printf("Adding node %d!\n", node_id);
     auto node = json["nodes"][node_id];
     Node& node_struct = nodes[node_id];
+    max_node_id = std::max(max_node_id, node_id);
     if(node["name"].defined()){
         node_struct.name = node["name"].getString();
     }
@@ -701,8 +760,10 @@ void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Trian
     this->triangles = triangles;
 
     vector<bool> unset_normal ;
+    vector<bool> referenced ;
     for(int k=0; k<vertices.size(); k++){
         unset_normal.push_back(glm::length(vertices[k].normal) < 0.01);
+        referenced.push_back(false);
     }
 
     // set undefined normals by summing up touching triangles
@@ -718,11 +779,32 @@ void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Trian
         if(unset_normal[t.C]){
             this->vertices[t.C].normal += n ;
         }
+        referenced[t.A] = true;
+        referenced[t.B] = true;
+        referenced[t.C] = true;
     }
-    //normalize normals
+
+    // removed vertices not in triangles
+    vector<int> new_index ;
+    int i = 0 ;
+    vector<Vertex> new_vertices ;
     for(int k=0;k<this->vertices.size();k++){
-        this->vertices[k].normal = glm::normalize(this->vertices[k].normal) ;
+        new_index.push_back(i);
+        if(referenced[k]){
+            this->vertices[k].normal = glm::normalize(this->vertices[k].normal) ; //normalize normals
+            new_vertices.push_back(this->vertices[k]);
+            i++;
+        }  
     }
+
+
+    for(int k=0; k < this->triangles.size(); k++){
+        Triangle& t = this->triangles[k] ;
+        t.A = new_index[t.A];
+        t.B = new_index[t.B];
+        t.C = new_index[t.C];
+    }
+    this->vertices = new_vertices ;
     
     //update AABB
     this->min = {9999999,9999999,9999999};
@@ -737,9 +819,11 @@ void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Trian
         if(v.z > this->max.z)this->max.z = v.z;
     }
     computeBaseVertices();
-    //nodes[74].rotation *= glm::quat(vec3(1.5,-0.2,-1.15));
-    //applyNodeTransforms();
-    this->buffers_changed = true;
+    this->model_changed = true;
+    this->position_changed = true;
+
+    printf("Total vertices: %d\n",(int) this->vertices.size());
+    printf("Total triangles: %d\n",(int) this->triangles.size());
 }
 
 // hashes a vertex to allow duplicates to be detected and merged
@@ -812,30 +896,13 @@ float GLTF::rayTrace(const vec3 &p, const vec3 &v){
     }return -1;
 }
 
-// Changes all vertices within radius of origin to the given color
-void GLTF::paint(const vec3 &center, const float &radius, const vec3 &color){
-    float r2 = radius*radius;
-    for(int k=0; k<this->vertices.size(); k++){
-        vec3 d = {this->vertices[k].position.x-center.x,this->vertices[k].position.y-center.y,this->vertices[k].position.z-center.z};
-        float d2 = d.x*d.x+d.y*d.y+d.z*d.z;
-        if(d2<r2){
-            // if actually changing
-            if(this->vertices[k].color_mult.x != color.x || this->vertices[k].color_mult.y != color.y || this->vertices[k].color_mult.z != color.z ){
-                this->vertices[k].color_mult = color;
-                this->buffers_changed = true;
-            }
-        }
-    }
-}
-
-
 // Computes absolute node matrices from their componentsand nesting
 void GLTF::computeNodeMatrices(int node_id, const glm::mat4& transform){
     Node& node = nodes[node_id];
     node.absolute_transform = transform ;
-    node.absolute_transform = glm::translate(node.absolute_transform, dvec3(node.translation));
-    node.absolute_transform *= dmat4(glm::mat4_cast(node.rotation));
-    node.absolute_transform = glm::scale(node.absolute_transform, dvec3(node.scale));
+    node.absolute_transform = glm::translate(node.absolute_transform, node.translation);
+    node.absolute_transform *= glm::mat4_cast(node.rotation);
+    node.absolute_transform = glm::scale(node.absolute_transform, node.scale);
     for(int k=0;k<node.children.size();k++){
         computeNodeMatrices(node.children[k], node.absolute_transform);
     }
@@ -846,39 +913,80 @@ void GLTF::computeBaseVertices(){
     for(int k=0;k<root_nodes.size();k++){
         computeNodeMatrices(root_nodes[k], glm::mat4(1.0f));
     } 
+
+    // need to flatten nodes into a vector since we're fetching them in the vertex loop
+    //printf("Max node id: %d\n",max_node_id);
+    vector<mat4> node_matrix_inv(max_node_id+1) ;
+    for(const auto& [node_id, node] : nodes){
+        if(node_id <= max_node_id){ // TODO I don't know how garbage gets in here, but it does on repeated loads sometimes
+            node_matrix_inv[node_id] = glm::inverse(node.absolute_transform) ;
+        }
+    }
+
     for(int k=0;k<vertices.size();k++){
         Vertex& v = vertices[k];
-        v.base_position = vector<vec3>();
-        v.base_normal = vector<vec3>();
+        v.base_position = vector<vec4>();
+        v.base_normal = vector<vec4>();
+        float total_weight = 0 ;
         for(int j=0;j<4;j++){
-            v.base_position.push_back({0,0,0});
-            v.base_normal.push_back({0,0,0});
+            v.base_position.push_back({0,0,0,0});
+            v.base_normal.push_back({0,0,0,0});
             if(v.weights[j] > 0){
-                dmat4 transform = nodes[v.joints[j]].absolute_transform;
-                dmat4 inv = glm::inverse(transform);
-                v.base_position[j] = vec3(inv *  vec4(v.position, 1)) ;
-                v.base_normal[j] = vec3(inv* vec4(v.normal, 0));
+                mat4& inv = node_matrix_inv[v.joints[j]];
+                v.base_position[j] = inv *  vec4(v.position, 1) * v.weights[j];
+                v.base_normal[j] = inv* vec4(v.normal, 0) * v.weights[j];
+                total_weight += v.weights[j];
             }
 
+        }
+        // If no rigging keep starting position as base position with no weight
+        if(total_weight <= 0.01){
+            v.base_position[0] = vec4(v.position,1);
+            v.base_normal[0] = vec4(v.normal,0);
         }
     }
 }
 
 // Applies current absolute node matrices to skinned vertices
-void GLTF::applyNodeTransforms(){
+void GLTF::applyTransforms(){
     for(int k=0;k<root_nodes.size();k++){
-        computeNodeMatrices(root_nodes[k], glm::mat4(1.0f));
+        computeNodeMatrices(root_nodes[k], this->transform);
     } 
-    for(int k=0;k<vertices.size();k++){
-        Vertex& v = vertices[k];
-        v.position = {0,0,0};
-        v.normal = {0,0,0};
-        for(int j=0;j<4;j++){
-            if(v.weights[j] > 0){
-                dmat4 transform = nodes[v.joints[j]].absolute_transform ;
-                v.position += vec3(transform * vec4(v.base_position[j], 1)) * v.weights[j];
-                v.normal += vec3(transform * vec4(v.base_normal[j], 0)) * v.weights[j];
-            }
+
+    // need to flatten nodes into a vector since we're fetching them in the vertex loop
+    //printf("Max node id: %d\n",max_node_id);
+    vector<mat4> node_matrix(max_node_id+1) ;
+    for(const auto& [node_id, node] : nodes){
+        if(node_id <= max_node_id){ // TODO I don't know how garbage gets in here, but it does on repeated loads sometimes
+            node_matrix[node_id] = node.absolute_transform ;
         }
     }
+    
+    for(auto& v : vertices){
+        vec4 p = {0,0,0,0};
+        vec4 n = {0,0,0,0};
+        bool has_rigging = 0 ;
+        const auto& joints = v.joints ;
+        const auto& weights = v.weights ;
+        for(int j=0;j<4;j++){
+            if(weights[j] > 0){
+                //printf("joint: %d\n", joints[j]);
+                mat4& transform = node_matrix[joints[j]];
+                p += transform * v.base_position[j] ;
+                n += transform * v.base_normal[j];
+                has_rigging = true;
+            }
+        }
+        
+        if(has_rigging){
+            v.position = p;
+            v.normal = n ;
+        }else{ // no rigging, apply transform to starting position of vertices
+            v.position = this->transform*v.base_position[0];
+            v.normal = this->transform*v.base_normal[0];
+        }
+        v.normal = glm::normalize(v.normal);
+    }
+    
+    this->position_changed = true;
 }

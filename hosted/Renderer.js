@@ -356,7 +356,7 @@ class Renderer{
                 this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
 
                 
-                console.log(mat.image_width +", " + mat.image_height +", " + mat.image_channels);
+                //console.log(mat.image_width +", " + mat.image_height +", " + mat.image_channels);
                 if(mat.image_channels == 3){
                     this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGB, 
                         mat.image_width, mat.image_height, 
