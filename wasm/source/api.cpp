@@ -7,6 +7,8 @@
 #include <string>
 #include <iomanip>
 #include <sstream>
+#include <chrono>
+#include <ctime>
 #include "glm/vec3.hpp"
 
 using std::vector;
@@ -14,6 +16,7 @@ using std::string;
 using std::map;
 using std::pair;
 using glm::vec3;
+using glm::mat4;
 
 // Outermost API holds a global reference to the core data model
 GLTF model_global;
@@ -36,6 +39,14 @@ byte* emptyReturn() {
     return pack(ret_map);
 }
 
+
+std::chrono::high_resolution_clock::time_point now(){
+    return std::chrono::high_resolution_clock::now();
+} 
+
+int millisBetween(std::chrono::high_resolution_clock::time_point start, std::chrono::high_resolution_clock::time_point end){
+    return (int)(std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count()*1000);
+}
 
 extern "C" { // Prevents C++ from mangling the exported name apparently
 
@@ -65,9 +76,14 @@ byte* setModel(byte* ptr){
         
     }
     
+    /*
     for(int k=0;k<model_global.vertices.size();k++){
         model_global.vertices[k].position = (model_global.vertices[k].position-center)*(1.0f/size);
-    }
+    }*/
+    model_global.transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
+    model_global.transform  = glm::translate(model_global.transform, center*-1.0f);
+    
+    model_global.applyTransforms();
     
     //printf("Zoom:%f\n", zoom);
     map<string, Variant> ret_map;
@@ -76,16 +92,32 @@ byte* setModel(byte* ptr){
     return pack(ret_map);
 }
 
+float rot = 0.1;
+
 byte* getUpdatedBuffers(byte* ptr){
+
+    /*
+    model_global.nodes[74].rotation = glm::quat(vec3(1.5,-0.2,rot));
+    rot+=0.01;
+    auto st = now();
+    model_global.applyTransforms();
+    int ms = millisBetween(st, now());
+    
+
+    model_global.position_changed = true;
+    */
+
     map<string,Variant> buffers;
-    if(model_global.buffers_changed){
+    //st = now();
+    if(model_global.position_changed || model_global.model_changed){
         for(auto const & [material_id, mat]: model_global.materials){
             std::stringstream ss;
             ss << material_id;
             string s_id = ss.str();
             buffers[s_id] = model_global.getChangedBuffer(material_id) ;
         }
-        model_global.buffers_changed = false;
+        model_global.position_changed = false;
+        model_global.model_changed = false;
         /*
         for(int k=0;k<model_global.triangles.size();k++){
             if(model_global.materials.find(model_global.triangles[k].material) == model_global.materials.end()){
@@ -94,19 +126,11 @@ byte* getUpdatedBuffers(byte* ptr){
         }*/
             
     }
+    //ms = millisBetween(st, now());
+    //printf("api get all buffers: %d ms\n", ms);
     return pack(buffers) ;
 }
 
-
-// expects an object with center, radius, and color as float arrays of length 3
-byte* paint(byte* ptr){
-    auto obj = Variant::deserializeObject(ptr);
-    vec3 center = obj["center"].getVec3() ; 
-    vec3 color = obj["color"].getVec3() ;
-    float radius = obj["radius"].getNumberAsFloat() ;
-    model_global.paint(center, radius, color);
-    return emptyReturn() ;
-}
 //expects an object with p and v, retruns a serialized single float for t
 byte* rayTrace(byte* ptr){
     auto obj = Variant::deserializeObject(ptr);

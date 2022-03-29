@@ -333,7 +333,7 @@ function loadGLBFile() {
 	var reader  = new FileReader();
 	reader.onloadend = function () {
         let load_data = new Int8Array(reader.result);
-        console.log(reader.result);
+        //console.log(reader.result);
         if(load_data!= null){
             let params = {};
             params.data = load_data;
