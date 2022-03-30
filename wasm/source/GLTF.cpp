@@ -127,12 +127,8 @@ Variant GLTF::getFloatBuffer(std::vector<glm::vec2>& point_list, int material){
 // Returns a Variant of openGL triangle buffers for displaying this mesh_ in world_ space
 
 Variant GLTF::getChangedBuffer(int selected_material){
-   
-   
     std::map<string, Variant> buffers;
     
-
-
     int num_triangles = 0 ;
     for(int k=0;k<this->triangles.size();k++){
         if(this->triangles[k].material == selected_material){
@@ -153,7 +149,6 @@ Variant GLTF::getChangedBuffer(int selected_material){
     *((int*)pos_buffer.ptr) = num_triangles * 9 ;// number of floats in array
     float* pos_buffer_array =  (float*)(pos_buffer.ptr+4) ; // pointer to start of float array
 
-    
     Variant& norm_buffer = buffers["normal"];
     norm_buffer.type_ = Variant::FLOAT_ARRAY;
     norm_buffer.ptr = (byte*)malloc(4 + num_triangles * 9 * sizeof(float));
@@ -242,6 +237,7 @@ void GLTF::setModel(const byte* data, int data_length){
     vector<Triangle> new_triangles;
     this->materials.clear();
     this->images.clear();
+    this->animations.clear();
     joint_to_node = map<int,map<int,int>>();
     nodes = map<int,Node>();
     max_node_id = 0 ;
@@ -261,12 +257,10 @@ void GLTF::setModel(const byte* data, int data_length){
         uint first_chunk_type = *((uint *) (data + 16));
         
         if(first_chunk_type == 0x4E4F534A){
-            //printf("JSON chunk found!\n");
 
             string header = string((char *) (data + 20), JSON_length);
-            //Variant::printJSON(s);
             json = Variant::parseJSON(header);
-            json.printFormatted();
+            //json.printFormatted();
             int bin_chunk_start = 20 + JSON_length ;
             
             if(bin_chunk_start %4 != 0){
@@ -275,8 +269,6 @@ void GLTF::setModel(const byte* data, int data_length){
             uint bin_length = *((uint*)(data+bin_chunk_start)) ;
             uint second_chunk_type = *((uint*)(data+bin_chunk_start+4)) ;
             if(second_chunk_type == 0x004E4942){
-                //printf("Bin chunk found!\n");
-                //printf("Bin size: %d \n", bin_length);
                 bin = Variant(data+bin_chunk_start+8, bin_length);
 
                 int num_materials = json["materials"].getArrayLength();
@@ -291,29 +283,30 @@ void GLTF::setModel(const byte* data, int data_length){
                         joint_to_node[s] = map<int,int>();
                         for(int k=0;k<skin_nodes.size();k++){
                             joint_to_node[s][k] = (int)(skin_nodes[k].getNumberAsFloat());
-                            //printf("Joint to node %d, %d = %d \n", s, k , joint_to_node[s][k]);
                         }
                     }
                 }
-                
-
                 int default_scene = 0 ;
                 if(json["scene"].defined()){
                     default_scene = json["scene"].getInt() ;
                 }
                 addScene(new_vertices, new_triangles, default_scene, json, bin) ;
 
-                
+                //TODO get animations
+                //json["animations"].printFormatted();
+                if(json["animations"].defined()){
+                    vector<Variant> animations = json["animations"].getVariantArray();
+                    for(const Variant& animation : animations){
+                        addAnimation(animation, json, bin);
+                    }
+                }
 
             }else{
                 printf("Bin chunk not found after json !(got %d)\n", second_chunk_type);
             }
-
-           
         }else{
             printf("first chunk not json: %u\n", first_chunk_type);
         }
-
     }else{
         printf("Not a GLB file! %d != %d\n", magic_num, 0x46546C67);
     }
@@ -707,6 +700,7 @@ void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangl
         if(tv.defined()){
             vec3 t = vec3(tv[0].getNumberAsFloat(), tv[1].getNumberAsFloat(), tv[2].getNumberAsFloat());
             node_struct.translation = t;
+            node_struct.base_translation = t;
             new_transform = glm::translate(new_transform, t);
         }
         Variant rv = node["rotation"] ;
@@ -714,12 +708,14 @@ void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangl
             // GLB is XYZW but GLM:quat is WXYZ
             glm::quat qrot(rv[3].getNumberAsFloat(), rv[0].getNumberAsFloat(), rv[1].getNumberAsFloat(), rv[2].getNumberAsFloat() );
             node_struct.rotation = qrot;
+            node_struct.base_rotation = qrot;
             new_transform *= glm::mat4_cast(qrot);
         }
         Variant sv = node["scale"];
         if(sv.defined()){
             vec3 s = vec3(sv[0].getNumberAsFloat(), sv[1].getNumberAsFloat(), sv[2].getNumberAsFloat());
             node_struct.scale = s;
+            node_struct.base_scale = s;
             new_transform = glm::scale(new_transform, s);
         }
     }
@@ -749,6 +745,61 @@ void GLTF::addScene(std::vector<Vertex>& vertices, std::vector<Triangle>& triang
         root_nodes.push_back(node_id);
         addNode(vertices, triangles, node_id, ident, json, bin);
     }
+}
+
+
+void GLTF::addAnimation(const Variant& animation_json, const Variant& json, const Variant& bin){
+    //animation.printFormatted();
+    
+    Animation animation ;
+    animation.name = animation_json["name"].getString();
+    printf("Adding animation %s!\n", animation.name.c_str());
+    vector<Variant> samplers_json = animation_json["samplers"].getVariantArray() ;
+    vector<Variant> channels_json = animation_json["channels"].getVariantArray() ;
+    for(const Variant& channel_json : channels_json){
+        AnimationChannel channel ;
+        channel.node = (int)channel_json["target"]["node"].getNumberAsFloat();
+        string type = channel_json["target"]["path"].getString();
+        int vec_size = 0 ;
+        if(type == "rotation"){
+            channel.path = ROTATION;
+            vec_size = 4;
+        }else if(type == "scale"){
+            channel.path = SCALE;
+            vec_size = 3 ;
+        }else if(type == "translation"){
+            channel.path = TRANSLATION;
+            vec_size = 3 ;
+        }else{
+            printf("Unrecognized animation channel path: %s . Aborting.\n", type.c_str());
+            return;
+        }
+
+        Variant& sampler = samplers_json[channel_json["sampler"].getInt()];
+        Accessor input = access(sampler["input"].getInt(), json, bin);
+        Accessor output = access(sampler["output"].getInt(), json, bin);
+        int num_samples = input.data.getArrayLength();
+        float* times = input.data.getFloatArray();
+        float* values = output.data.getFloatArray();
+        for(int k=0;k<num_samples;k++){
+            std::pair<float, vec4> sample;
+            sample.first = times[k];
+            if(vec_size == 4){
+                sample.second = {values[k*4],values[k*4+1],values[k*4+2],values[k*4+3]};
+                //sample.second = {values[k*4+1], values[k*4+2],values[k*4+3],values[k*4]};
+                vec4& q = sample.second ;
+
+
+            }else{
+                sample.second = {values[k*3],values[k*3+1],values[k*3+2],0};
+            }
+            animation.duration = fmax(animation.duration,times[k]);
+            channel.samples.push_back(sample);
+        }
+        animation.channels.push_back(channel);
+    }
+
+    this->animations.push_back(animation); // TODO id is ignored here, could be a bug source if we ever load them out of order
 }
 
 
@@ -989,4 +1040,55 @@ void GLTF::applyTransforms(){
     }
     
     this->position_changed = true;
+}
+
+// Sets transforms to the given enimation 
+// Does not change transforms unaffected by snimation, does not apply transforms to vertices
+void GLTF::animate(const Animation& animation, float time){
+    
+    if(time < 0 || time > animation.duration){
+        printf("Time outside of animation range, aborting!\n");
+        return ;
+    }
+
+    for(int c=0;c<animation.channels.size();c++){
+        AnimationChannel channel = animation.channels[c];
+        // Find the first frame after current time
+        int end = 0 ;
+        while(channel.samples[end].first < time && end < channel.samples.size()){\
+            end++;
+        }
+        int start = end-1; // start frame is the frame before that
+        
+        float t = 0.5f;
+        if(end ==channel.samples.size()){ // if time is beyond all keyframes
+            end = start ; // start and end will both be the last frame
+        }else if(end == 0){
+            start = 0 ;
+        }else{
+            float start_time = channel.samples[start].first ;
+            float end_time = channel.samples[end].first ;
+            t = (time-start_time) / (end_time-start_time); 
+        }
+
+        //printf("Start key: %d End key: %d\n", start, end);
+        if(channel.path == SCALE){
+            nodes[channel.node].scale = channel.samples[start].second * (1-t) +  channel.samples[end].second * t;
+            //printf("Animated %s t = %f scale: %f, %f, %f\n", nodes[channel.node].name.c_str(), t, nodes[channel.node].scale[0], nodes[channel.node].scale[1], nodes[channel.node].scale[2]);
+        }else if(channel.path == TRANSLATION){
+            nodes[channel.node].translation = channel.samples[start].second * (1-t) +  channel.samples[end].second * t;
+            //printf("Animated %s t = %f translation: %f, %f, %f\n", nodes[channel.node].name.c_str(), t, nodes[channel.node].translation[0], nodes[channel.node].translation[1], nodes[channel.node].translation[2]);
+        
+        }else if(channel.path == ROTATION){
+            auto start_quat = glm::quat(channel.samples[start].second[3], channel.samples[start].second[0], channel.samples[start].second[1], channel.samples[start].second[2]) ;
+            auto end_quat = glm::quat(channel.samples[end].second[3], channel.samples[end].second[0], channel.samples[end].second[1], channel.samples[end].second[2]) ;
+            
+            nodes[channel.node].rotation = glm::mix(start_quat, end_quat, t);
+            
+            //nodes[channel.node].rotation = glm::quat(channel.samples[start].second) ;
+            //nodes[channel.node].rotation = glm::quat(channel.samples[start].second[3], channel.samples[start].second[0], channel.samples[start].second[1], channel.samples[start].second[2]) ;
+            //printf("Animated %s t = %f rotation: %f, %f, %f, %f\n", nodes[channel.node].name.c_str(), t, nodes[channel.node].rotation.w, nodes[channel.node].rotation.x, nodes[channel.node].rotation.y, nodes[channel.node].rotation.z);
+
+        }
+    }
 }

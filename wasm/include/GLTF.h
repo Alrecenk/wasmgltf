@@ -6,6 +6,7 @@
 #include "glm/glm.hpp"
 #include "glm/gtx/transform.hpp"
 #include "glm/gtc/quaternion.hpp"
+#include "glm/ext.hpp"
 
 typedef Variant::Type Type;
 typedef unsigned int uint;
@@ -65,8 +66,27 @@ class GLTF{
             glm::quat rotation = {1.0f, 0.0f, 0.0f, 0.0f};
             glm::vec3 scale = {1.0f,1.0f,1.0f};
             glm::vec3 translation = {0.0f, 0.0f, 0.0f};
+
+            glm::quat base_rotation = {1.0f, 0.0f, 0.0f, 0.0f};
+            glm::vec3 base_scale = {1.0f,1.0f,1.0f};
+            glm::vec3 base_translation = {0.0f, 0.0f, 0.0f};
+
             // global transform computed from components
             glm::mat4 absolute_transform;
+        };
+
+        enum Path {ROTATION, TRANSLATION, SCALE};
+
+        struct AnimationChannel{
+            int node =-1;
+            Path path = SCALE;
+            std::vector<std::pair<float,glm::vec4>> samples ;
+        };
+
+        struct Animation{
+            std::string name = "";
+            float duration = 0;
+            std::vector<AnimationChannel> channels;
         };
 
 
@@ -77,6 +97,7 @@ class GLTF{
         int max_node_id;
         std::vector<int> root_nodes ;
         glm::mat4 transform;
+        std::vector<Animation> animations;
         
 
 
@@ -129,6 +150,8 @@ class GLTF{
 
         void addImage(int image_id, const Variant& json, const Variant& bin);
 
+        void addAnimation(const Variant& animation, const Variant& json, const Variant& bin);
+
         // Computes absolute node matrices from their componentsand nesting
         void computeNodeMatrices(int node_id, const glm::mat4& transform);
         
@@ -148,9 +171,9 @@ class GLTF{
         // return negative if no collision
         float rayTrace(const glm::vec3 &p, const glm::vec3 &v);
 
-        // Changes all vertices within radius of origin to the given color
-        void paint(const glm::vec3 &center, const float &radius, const glm::vec3 &color);
-
+        // Sets transforms to the given enimation 
+        // Does not change transforms unaffected by snimation, does not apply transforms to vertices
+        void animate(const Animation& animation, float time);
 
     private:
         // Performs the duplicate work for the various get vertex buffer functions

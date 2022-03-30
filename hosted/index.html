@@ -144,6 +144,7 @@ function canvasApp() {
 		document.addEventListener("touchend", touchHandler, true);
 		document.addEventListener("touchcancel", touchHandler, true);
 
+            
 		requestAnimationFrame(timeListener); // Timer at 60 hertz.
 	}
 
@@ -305,8 +306,8 @@ function initializeModes(){
 function setMainMenuButtons(){
     buttons = {};
     buttons["fps_label"] = new InterfaceButton(tools.canvas.width-80, 10, 80, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
-    buttons["enter_vr"] = new InterfaceButton(5, 10, 100, 30, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
-    //buttons["Camera Mode"] = new InterfaceButton(105, 10, 100, 30, "Camera", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.camera_mode);});
+    buttons["enter_vr"] = new InterfaceButton(5, 10, 200, 40, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
+    buttons["next_animation"] = new InterfaceButton(5, 55, 200, 40, "Next Animation", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.API.call("nextAnimation");});
     
     tools.buttons = buttons ;
 }

@@ -464,6 +464,17 @@ class Renderer{
 
       // Called every time the XRSession requests that a new frame be drawn.
     onXRFrame(time, frame) {
+
+        current_mode.timer();
+
+        let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
+        if(new_buffer_data && Object.keys(new_buffer_data).length > 0 && "material" in new_buffer_data[0]){
+            tools.renderer.clearBuffers();
+        }
+        for(let id in new_buffer_data){
+            tools.renderer.prepareBuffer(id, new_buffer_data[id]);
+        }
+
          // console.log(time);
         let session = frame.session;
 
@@ -473,6 +484,9 @@ class Renderer{
         // Get the XRDevice pose relative to the reference space we created
         // earlier.
         let pose = frame.getViewerPose(renderer.xr_ref_space);
+
+        
+
 
         // Getting the pose may fail if, for example, tracking is lost. So we
         // have to check to make sure that we got a valid pose before attempting
