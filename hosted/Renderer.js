@@ -465,15 +465,7 @@ class Renderer{
       // Called every time the XRSession requests that a new frame be drawn.
     onXRFrame(time, frame) {
 
-        current_mode.timer();
-
-        let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
-        if(new_buffer_data && Object.keys(new_buffer_data).length > 0 && "material" in new_buffer_data[0]){
-            tools.renderer.clearBuffers();
-        }
-        for(let id in new_buffer_data){
-            tools.renderer.prepareBuffer(id, new_buffer_data[id]);
-        }
+        window.setTimeout(tools.renderer.animate,1);
 
          // console.log(time);
         let session = frame.session;
@@ -484,9 +476,6 @@ class Renderer{
         // Get the XRDevice pose relative to the reference space we created
         // earlier.
         let pose = frame.getViewerPose(renderer.xr_ref_space);
-
-        
-
 
         // Getting the pose may fail if, for example, tracking is lost. So we
         // have to check to make sure that we got a valid pose before attempting
@@ -502,8 +491,6 @@ class Renderer{
             renderer.gl.bindFramebuffer(renderer.gl.FRAMEBUFFER, glLayer.framebuffer);
 
             // Clear the framebuffer
-
-
             renderer.gl.clearColor(renderer.bgColor[0]/255.0, renderer.bgColor[1]/255.0, renderer.bgColor[2]/255.0, 1.0);
             renderer.gl.enable(renderer.gl.DEPTH_TEST);
             renderer.gl.enable(renderer.gl.CULL_FACE);
@@ -511,24 +498,6 @@ class Renderer{
 
             renderer.gl.clear(renderer.gl.COLOR_BUFFER_BIT | renderer.gl.DEPTH_BUFFER_BIT);
             
-            /*
-            if(!model){
-                if(loaded_buffer){
-                    //model = prepareModel(gl, loaded_buffer);
-                    model_pose = mat4.create();
-                    mat4.identity(model_pose);
-                    mat4.translate(model_pose, model_pose,[0,0,-0.5]);
-                }else{
-                    model = getTetra(gl, [0,0,-0.5],.1);
-                }
-            }
-
-            
-            
-            
-            if(!grip_cursor){
-                grip_cursor = getTetra(gl, [0,0,0],.02);
-            }*/
 
             if(!renderer.model_pose){
                 renderer.model_pose = mat4.create();
@@ -627,6 +596,23 @@ class Renderer{
 
         }
 
+    }
+
+    animating = false;
+    animate(){
+        if(!this.animating){
+            this.animating = true;
+
+            let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
+            if(new_buffer_data && Object.keys(new_buffer_data).length > 0 && "material" in new_buffer_data[0]){
+                tools.renderer.clearBuffers();
+            }
+            for(let id in new_buffer_data){
+                tools.renderer.prepareBuffer(id, new_buffer_data[id]);
+            }
+
+            this.animating = false;
+        }
     }
     
 
