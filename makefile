@@ -24,6 +24,7 @@ EXPORTED_FUNCTIONS =[\
 	'_getUpdatedBuffers', \
 	'_rayTrace', \
 	'_scan', \
+	'_nextAnimation', \
 	'_testAllocate', \
 	'_malloc', \
 	'_free']

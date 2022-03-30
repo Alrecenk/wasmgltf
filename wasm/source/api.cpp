@@ -26,6 +26,9 @@ Variant ret ; // A long lived variant used to hold data being returned to webass
 byte* packet_ptr ; // location ofr data passed as function parameters and returns
 
 
+int selected_animation = -1;
+std::chrono::high_resolution_clock::time_point animation_start_time;
+
 byte* pack(std::map<std::string, Variant> packet){
     ret = Variant(packet);
     memcpy(packet_ptr, ret.ptr, ret.getSize()); // TODO figure out how to avoid this copy
@@ -43,6 +46,8 @@ byte* emptyReturn() {
 std::chrono::high_resolution_clock::time_point now(){
     return std::chrono::high_resolution_clock::now();
 } 
+
+
 
 int millisBetween(std::chrono::high_resolution_clock::time_point start, std::chrono::high_resolution_clock::time_point end){
     return (int)(std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count()*1000);
@@ -80,6 +85,8 @@ byte* setModel(byte* ptr){
     for(int k=0;k<model_global.vertices.size();k++){
         model_global.vertices[k].position = (model_global.vertices[k].position-center)*(1.0f/size);
     }*/
+    model_global.computeBaseVertices();
+
     model_global.transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
     model_global.transform  = glm::translate(model_global.transform, center*-1.0f);
     
@@ -92,20 +99,20 @@ byte* setModel(byte* ptr){
     return pack(ret_map);
 }
 
-float rot = 0.1;
+
 
 byte* getUpdatedBuffers(byte* ptr){
 
-    /*
-    model_global.nodes[74].rotation = glm::quat(vec3(1.5,-0.2,rot));
-    rot+=0.01;
-    auto st = now();
-    model_global.applyTransforms();
-    int ms = millisBetween(st, now());
-    
-
-    model_global.position_changed = true;
-    */
+    if(selected_animation >= 0){
+        auto& animation = model_global.animations[selected_animation];
+        float time = millisBetween(animation_start_time, now()) / 1000.0f;
+            while(time > animation.duration){
+                time-= animation.duration;
+            }
+        model_global.animate(animation,time);
+        model_global.applyTransforms();
+        //stopped = true;
+    }
 
     map<string,Variant> buffers;
     //st = now();
@@ -176,6 +183,15 @@ byte* scan(byte* ptr){
 
         //printf("Local Position: %f, %f, %f \n" , v.base_position.x, v.base_position.y, v.base_position.z);
     }
+    return emptyReturn();
+}
+
+byte* nextAnimation(byte* ptr){
+    selected_animation = selected_animation+1;
+    if(selected_animation >= model_global.animations.size()){
+        selected_animation = -1;
+    }
+    animation_start_time = now();
     return emptyReturn();
 }
 
