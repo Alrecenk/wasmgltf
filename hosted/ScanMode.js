@@ -71,7 +71,7 @@ class ScanMode extends ExecutionMode{
 		this.mouse_down = true ;
 		this.mouse_button = pointers[0].button ;
         
-        if(this.mouse_button == 2){
+        if(this.mouse_button == 0){
             this.rotating = true;
             this.tools.renderer.startRotate(this.camera_focus, pointers[0]);
         }else{
