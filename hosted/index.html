@@ -90,46 +90,41 @@ body {
 
     uniform mat4 uMVMatrix;
     uniform mat4 uPMatrix;
-    uniform mat4 uBones[256];
+    uniform sampler2D bones_texture;
 
     out vec3 v_color;
 	out vec3 v_position;
 	out vec3 v_normal;
     out vec2 v_texcoord;
 
+    vec4 getBoneElem(int index){
+        int y = index/32;
+		int x = index - (y*32) ;
+		return texelFetch(bones_texture, ivec2(x, y), 0);
+	}
+
+    mat4 getBone(float index){
+        int i = int(round(index));
+        mat4 bone ;
+        bone[0] = getBoneElem(4*i);
+        bone[1] = getBoneElem(4*i+1);
+        bone[2] = getBoneElem(4*i+2);
+        bone[3] = getBoneElem(4*i+3);
+        return bone ;
+    }
+
     void main(void) {
         vec4 x = vec4(aVertexPosition, 1) ;
 
-        v_position = vec3(uBones[int(round(aJoints[0]))] * x * aWeights[0] + 
-                     uBones[int(round(aJoints[1]))] * x * aWeights[1] + 
-                     uBones[int(round(aJoints[2]))] * x * aWeights[2] + 
-                     uBones[int(round(aJoints[3]))] * x * aWeights[3] );
+        v_position = vec3(getBone(aJoints[0]) * x * aWeights[0] + 
+                        getBone(aJoints[1]) * x * aWeights[1] + 
+                        getBone(aJoints[2]) * x * aWeights[2] + 
+                        getBone(aJoints[3]) * x * aWeights[3] );
 
-                  
-        
         v_color = aVertexColor;
-
-        
-
-
         if(length(v_position) < 0.01f){
-            //v_position = aVertexPosition;
-            v_color = vec3(1.0,0.0,0.0);
-            mat4 b = uBones[1] ;
-            if(length(b[0]) + length(b[1]) + length(b[2]) + length(b[3]) <0.001){
-                v_color = vec3(0.0,0.0,0.0);
-            }
-
-            if(aJoints[1] < 0.1f){
-                v_color = vec3(1.0,1.0,0.0);
-            }
-            if(length(x) < 0.01f){
-                v_color = vec3(0.0,0.0,1.0);
-            }
-            if(aWeights[1] < 0.01f){
-                v_color = vec3(0.0,1.0,0.0);
-            }
-            
+            v_position = aVertexPosition;
+            v_color = vec3(1.0,0.0,0.0);            
         }
 
 		//v_position = aVertexPosition; 

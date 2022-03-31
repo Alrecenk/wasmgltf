@@ -127,9 +127,9 @@ class Renderer{
         this.gl.enableVertexAttribArray(this.shaderProgram.weightsAttribute);
         this.shaderProgram.pMatrixUniform = this.gl.getUniformLocation(this.shaderProgram, "uPMatrix");
         this.shaderProgram.mvMatrixUniform = this.gl.getUniformLocation(this.shaderProgram, "uMVMatrix");
-        this.shaderProgram.bonesUniform = this.gl.getUniformLocation(this.shaderProgram, "uBones");
         this.shaderProgram.light_point = this.gl.getUniformLocation(this.shaderProgram, "u_light_point");
         this.shaderProgram.texture = this.gl.getUniformLocation(this.shaderProgram, "u_texture");
+        this.shaderProgram.bones_texture = this.gl.getUniformLocation(this.shaderProgram, "bones_texture");
         this.shaderProgram.has_texture = this.gl.getUniformLocation(this.shaderProgram, "u_has_texture");
         this.shaderProgram.alpha_cutoff = this.gl.getUniformLocation(this.shaderProgram, "u_alpha_cutoff");
     }
@@ -402,10 +402,18 @@ class Renderer{
         }
 
         if(buffer_data.bones){
-            //console.log(this.shaderProgram.uBones);
-            //console.log("uniforming bones 8!");
-            this.gl.uniformMatrix4fv(this.shaderProgram.bonesUniform, false, buffer_data.bones );
-            //this.gl.uniform1fv(this.shaderProgram.bonesUniform, buffer_data.bones);
+            var bone_tex = this.gl.createTexture();
+            this.gl.bindTexture(this.gl.TEXTURE_2D, bone_tex);
+            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
+            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
+            
+            this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA32F, 32, 32, 0, this.gl.RGBA, this.gl.FLOAT, buffer_data.bones);
+
+            this.gl.activeTexture(this.gl.TEXTURE0 + 1);
+            this.gl.bindTexture(this.gl.TEXTURE_2D, bone_tex);
+            this.gl.uniform1i(this.shaderProgram.bones_texture, 1);
         }
 
         this.buffers[id].ready = true;
