@@ -63,7 +63,7 @@ body {
         if(u_has_texture > 0){
             vec4 t_color = texture(u_texture, v_texcoord);
             if(t_color.a > u_alpha_cutoff){
-                frag_color = vec4(t_color.r*l,t_color.g*l,t_color.b*l , 1.0);
+                frag_color = vec4(t_color.r*l *v_color.r ,t_color.g*l * v_color.g,t_color.b*l*v_color.b , 1.0);
             }else{
                 discard;
             }
@@ -85,9 +85,12 @@ body {
     in vec3 aVertexColor;
 	in vec3 aNormal;
     in vec2 aTexcoord;
+    in vec4 aJoints;
+    in vec4 aWeights;
 
     uniform mat4 uMVMatrix;
     uniform mat4 uPMatrix;
+    uniform mat4 uBones[256];
 
     out vec3 v_color;
 	out vec3 v_position;
@@ -95,11 +98,44 @@ body {
     out vec2 v_texcoord;
 
     void main(void) {
-        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+        vec4 x = vec4(aVertexPosition, 1) ;
+
+        v_position = vec3(uBones[int(round(aJoints[0]))] * x * aWeights[0] + 
+                     uBones[int(round(aJoints[1]))] * x * aWeights[1] + 
+                     uBones[int(round(aJoints[2]))] * x * aWeights[2] + 
+                     uBones[int(round(aJoints[3]))] * x * aWeights[3] );
+
+                  
+        
         v_color = aVertexColor;
-		v_position = aVertexPosition; 
+
+        
+
+
+        if(length(v_position) < 0.01f){
+            //v_position = aVertexPosition;
+            v_color = vec3(1.0,0.0,0.0);
+            mat4 b = uBones[1] ;
+            if(length(b[0]) + length(b[1]) + length(b[2]) + length(b[3]) <0.001){
+                v_color = vec3(0.0,0.0,0.0);
+            }
+
+            if(aJoints[1] < 0.1f){
+                v_color = vec3(1.0,1.0,0.0);
+            }
+            if(length(x) < 0.01f){
+                v_color = vec3(0.0,0.0,1.0);
+            }
+            if(aWeights[1] < 0.01f){
+                v_color = vec3(0.0,1.0,0.0);
+            }
+            
+        }
+
+		//v_position = aVertexPosition; 
 		v_normal = aNormal;
         v_texcoord = aTexcoord;
+        gl_Position = uPMatrix * uMVMatrix * vec4(v_position, 1.0);
     }
 </script>
 

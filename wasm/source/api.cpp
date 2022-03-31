@@ -90,6 +90,7 @@ byte* setModel(byte* ptr){
     model_global.transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
     model_global.transform  = glm::translate(model_global.transform, center*-1.0f);
     
+    model_global.computeNodeMatrices();
     model_global.applyTransforms();
     
     //printf("Zoom:%f\n", zoom);
@@ -110,13 +111,13 @@ byte* getUpdatedBuffers(byte* ptr){
                 time-= animation.duration;
             }
         model_global.animate(animation,time);
-        model_global.applyTransforms();
+        //model_global.applyTransforms();
         //stopped = true;
     }
 
     map<string,Variant> buffers;
     //st = now();
-    if(model_global.position_changed || model_global.model_changed){
+    if(model_global.position_changed || model_global.model_changed || model_global.bones_changed){
         for(auto const & [material_id, mat]: model_global.materials){
             std::stringstream ss;
             ss << material_id;
@@ -125,6 +126,7 @@ byte* getUpdatedBuffers(byte* ptr){
         }
         model_global.position_changed = false;
         model_global.model_changed = false;
+        model_global.bones_changed = false;
         /*
         for(int k=0;k<model_global.triangles.size();k++){
             if(model_global.materials.find(model_global.triangles[k].material) == model_global.materials.end()){
@@ -191,7 +193,8 @@ byte* nextAnimation(byte* ptr){
     if(selected_animation >= model_global.animations.size()){
         selected_animation = -1;
         model_global.setBasePose();
-        model_global.applyTransforms();
+        model_global.computeNodeMatrices();
+        //model_global.applyTransforms();
     }
     animation_start_time = now();
     return emptyReturn();

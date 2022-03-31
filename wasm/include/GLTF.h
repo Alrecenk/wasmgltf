@@ -82,6 +82,7 @@ class GLTF{
             int node =-1;
             Path path = SCALE;
             std::vector<std::pair<float,glm::vec4>> samples ;
+            int last_read = 0 ;
         };
 
         struct Animation{
@@ -116,6 +117,7 @@ class GLTF{
         glm::vec3 max; // maximum values in each axis part of AABB
         bool position_changed = false;
         bool model_changed = false;
+        bool bones_changed = false;
         int last_traced_tri ; // Index of last triangle hit by raytrace
 
         // Constructor
@@ -155,6 +157,9 @@ class GLTF{
 
         // Computes absolute node matrices from their componentsand nesting
         void computeNodeMatrices(int node_id, const glm::mat4& transform);
+
+        // calls above with all roots usin the root transform
+        void computeNodeMatrices();
         
         // Computes base vertices for skinned vertices so they can later use apply node transforms
         void computeInvMatrices();
@@ -176,12 +181,14 @@ class GLTF{
 
         // Sets transforms to the given enimation 
         // Does not change transforms unaffected by snimation, does not apply transforms to vertices
-        void animate(const Animation& animation, float time);
+        void animate(Animation& animation, float time);
 
     private:
         // Performs the duplicate work for the various get vertex buffer functions
         Variant getFloatBuffer(std::vector<glm::vec3>& ptr, int material);
         Variant getFloatBuffer(std::vector<glm::vec2>& ptr, int material);
+        Variant getFloatBuffer(std::vector<glm::vec4>& ptr, int material);
+        Variant getFloatBuffer(std::vector<glm::ivec4>& ptr, int material);
 
         // returns the normal of a triangle
         glm::vec3 getNormal(Triangle t);
