@@ -156,6 +156,9 @@ class GLTF{
 
         // Computes absolute node matrices from their componentsand nesting
         void computeNodeMatrices(int node_id, const glm::mat4& transform);
+
+        // calls above with all roots usin the root transform
+        void computeNodeMatrices();
         
         // Computes base vertices for skinned vertices so they can later use apply node transforms
         void computeInvMatrices();

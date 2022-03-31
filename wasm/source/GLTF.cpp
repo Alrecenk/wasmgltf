@@ -190,33 +190,33 @@ Variant GLTF::getFloatBuffer(std::vector<glm::ivec4>& point_list, int material){
     // Maybe here should be an array constructor that just takes type and size
     // and then the get array provides a shallow pointer that can't be freed?
     Variant buffer;
-    buffer.type_ = Variant::INT_ARRAY;
-    buffer.ptr = (byte*)malloc(4 + num_triangles * 12 * sizeof(int));
+    buffer.type_ = Variant::FLOAT_ARRAY;
+    buffer.ptr = (byte*)malloc(4 + num_triangles * 12 * sizeof(float));
     
     *((int*)buffer.ptr) = num_triangles * 12 ;// number of floats in array
-    int* buffer_array =  (int*)(buffer.ptr+4) ; // pointer to start of float array
+    float* buffer_array =  (float*)(buffer.ptr+4) ; // pointer to start of float array
     int j = 0 ;
     for(int k=0;k<this->triangles.size();k++){
         if(this->triangles[k].material == material){
             Triangle& t = this->triangles[k];
             // A
             ivec4& A = point_list[t.A];
-            buffer_array[j] = A.w;
-            buffer_array[j+1] = A.x;
-            buffer_array[j+2] = A.y;
-            buffer_array[j+3] = A.z;
+            buffer_array[j] = (float)A.w;
+            buffer_array[j+1] = (float)A.x;
+            buffer_array[j+2] = (float)A.y;
+            buffer_array[j+3] = (float)A.z;
             // B
             ivec4& B = point_list[t.B];
-            buffer_array[j+4] = B.w;
-            buffer_array[j+5] = B.x;
-            buffer_array[j+6] = B.y;
-            buffer_array[j+7] = B.z;
+            buffer_array[j+4] = (float)B.w;
+            buffer_array[j+5] = (float)B.x;
+            buffer_array[j+6] = (float)B.y;
+            buffer_array[j+7] = (float)B.z;
             // C
             ivec4& C = point_list[t.C];
-            buffer_array[j+8] = C.w;
-            buffer_array[j+9] = C.x;
-            buffer_array[j+10] = C.y;
-            buffer_array[j+11] = C.z;
+            buffer_array[j+8] = (float)C.w;
+            buffer_array[j+9] = (float)C.x;
+            buffer_array[j+10] = (float)C.y;
+            buffer_array[j+11] = (float)C.z;
             j+=12;
         }
     }
@@ -257,17 +257,17 @@ Variant GLTF::getChangedBuffer(int selected_material){
             if(this->triangles[k].material == selected_material){
                 Triangle& t = this->triangles[k];
                 // A
-                vec3& A = vertices[t.A].transformed_position;
+                vec3& A = vertices[t.A].position;
                 pos_buffer_array[j9] = A.x;
                 pos_buffer_array[j9+1] = A.y;
                 pos_buffer_array[j9+2] = A.z;
                 // B
-                vec3& B = vertices[t.B].transformed_position;
+                vec3& B = vertices[t.B].position;
                 pos_buffer_array[j9+3] = B.x;
                 pos_buffer_array[j9+4] = B.y;
                 pos_buffer_array[j9+5] = B.z;
                 // C
-                vec3& C = vertices[t.C].transformed_position;
+                vec3& C = vertices[t.C].position;
                 pos_buffer_array[j9+6] = C.x;
                 pos_buffer_array[j9+7] = C.y;
                 pos_buffer_array[j9+8] = C.z;
@@ -336,10 +336,11 @@ Variant GLTF::getChangedBuffer(int selected_material){
 
     if(this->bones_changed){
         int num_bones = max_node_id+1 ;
+        int shader_num_bones = 256;
         Variant& bone_buffer = buffers["bones"];
         bone_buffer.type_ = Variant::FLOAT_ARRAY;
-        bone_buffer.ptr = (byte*)malloc(4 + num_bones * 16 * sizeof(float));
-        *((int*)bone_buffer.ptr) = num_bones * 16 ;// number of floats in array
+        bone_buffer.ptr = (byte*)malloc(4 + shader_num_bones * 16 * sizeof(float));
+        *((int*)bone_buffer.ptr) = shader_num_bones * 16 ;// number of floats in array
         float* bone_buffer_array =  (float*)(bone_buffer.ptr+4) ; // pointer to start of float array
 
         for(const auto& [node_id, node] : nodes){
@@ -996,6 +997,7 @@ void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Trian
     computeInvMatrices();
     this->model_changed = true;
     this->position_changed = true;
+    this->bones_changed = true;
 
     printf("Total vertices: %d\n",(int) this->vertices.size());
     printf("Total triangles: %d\n",(int) this->triangles.size());
@@ -1085,6 +1087,12 @@ void GLTF::computeNodeMatrices(int node_id, const glm::mat4& transform){
     node.transform = node.transform * node.inv_transform;
 }
 
+void GLTF::computeNodeMatrices(){
+    for(int k=0;k<root_nodes.size();k++){
+        computeNodeMatrices(root_nodes[k], this->transform);
+    } 
+}
+
  // Computes base vertices for skinned vertices so they can later use apply node transforms
 void GLTF::computeInvMatrices(){
     for(auto& [node_id, node] : nodes){
@@ -1104,9 +1112,6 @@ void GLTF::computeInvMatrices(){
 
 // Applies current node transformed to skinned vertices
 void GLTF::applyTransforms(){
-    for(int k=0;k<root_nodes.size();k++){
-        computeNodeMatrices(root_nodes[k], this->transform);
-    } 
 
     // need to flatten nodes into a vector since we're fetching them in the vertex loop
     //printf("Max node id: %d\n",max_node_id);
@@ -1206,6 +1211,7 @@ void GLTF::animate(const Animation& animation, float time){
 
         }
     }
+    computeNodeMatrices();
 
     this->bones_changed = true;
 }

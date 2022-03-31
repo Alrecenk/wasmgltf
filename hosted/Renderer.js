@@ -355,6 +355,7 @@ class Renderer{
         }
 
         if(buffer_data.joints){
+            
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers[id].joints );
             this.gl.bufferData(this.gl.ARRAY_BUFFER, buffer_data.joints, this.gl.STATIC_DRAW);
             this.buffers[id].joints.itemSize = 4;
@@ -401,7 +402,10 @@ class Renderer{
         }
 
         if(buffer_data.bones){
-            this.gl.uniformMatrix4fv(this.shaderProgram.uBones, false, buffer_data.bones);
+            //console.log(this.shaderProgram.uBones);
+            //console.log("uniforming bones 8!");
+            this.gl.uniformMatrix4fv(this.shaderProgram.bonesUniform, false, buffer_data.bones );
+            //this.gl.uniform1fv(this.shaderProgram.bonesUniform, buffer_data.bones);
         }
 
         this.buffers[id].ready = true;
@@ -424,7 +428,7 @@ class Renderer{
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, color_buffer);
             this.gl.vertexAttribPointer(this.shaderProgram.vertexColorAttribute, color_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, joints_buffer);
-            this.gl.vertexAttribPointer(this.shaderProgram.jointsAttribute, joints_buffer.itemSize, this.gl.INT, false, 0, 0);
+            this.gl.vertexAttribPointer(this.shaderProgram.jointsAttribute, joints_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, weights_buffer);
             this.gl.vertexAttribPointer(this.shaderProgram.weightsAttribute, weights_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
 

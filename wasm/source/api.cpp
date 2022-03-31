@@ -90,6 +90,7 @@ byte* setModel(byte* ptr){
     model_global.transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
     model_global.transform  = glm::translate(model_global.transform, center*-1.0f);
     
+    model_global.computeNodeMatrices();
     model_global.applyTransforms();
     
     //printf("Zoom:%f\n", zoom);
@@ -110,7 +111,7 @@ byte* getUpdatedBuffers(byte* ptr){
                 time-= animation.duration;
             }
         model_global.animate(animation,time);
-        model_global.applyTransforms();
+        //model_global.applyTransforms();
         //stopped = true;
     }
 
@@ -192,7 +193,8 @@ byte* nextAnimation(byte* ptr){
     if(selected_animation >= model_global.animations.size()){
         selected_animation = -1;
         model_global.setBasePose();
-        model_global.applyTransforms();
+        model_global.computeNodeMatrices();
+        //model_global.applyTransforms();
     }
     animation_start_time = now();
     return emptyReturn();
