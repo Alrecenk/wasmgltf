@@ -82,6 +82,7 @@ class GLTF{
             int node =-1;
             Path path = SCALE;
             std::vector<std::pair<float,glm::vec4>> samples ;
+            int last_read = 0 ;
         };
 
         struct Animation{
@@ -180,7 +181,7 @@ class GLTF{
 
         // Sets transforms to the given enimation 
         // Does not change transforms unaffected by snimation, does not apply transforms to vertices
-        void animate(const Animation& animation, float time);
+        void animate(Animation& animation, float time);
 
     private:
         // Performs the duplicate work for the various get vertex buffer functions

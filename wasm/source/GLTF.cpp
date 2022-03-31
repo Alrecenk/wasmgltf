@@ -1164,7 +1164,7 @@ void GLTF::setBasePose(){
 
 // Sets transforms to the given enimation 
 // Does not change transforms unaffected by snimation, does not apply transforms to vertices
-void GLTF::animate(const Animation& animation, float time){
+void GLTF::animate(Animation& animation, float time){
     
     if(time < 0 || time > animation.duration){
         printf("Time outside of animation range, aborting!\n");
@@ -1172,12 +1172,17 @@ void GLTF::animate(const Animation& animation, float time){
     }
 
     for(int c=0;c<animation.channels.size();c++){
-        AnimationChannel channel = animation.channels[c];
+        AnimationChannel& channel = animation.channels[c];
         // Find the first frame after current time
-        int end = 0 ;
+        int end = channel.last_read ; // start from last read key for this channel
+        if(channel.samples[end].first > time){ // if it's in the future
+            end = 0 ; // start from the beginning
+        }
+        // walk forward to find the first frame after this time
         while(channel.samples[end].first < time && end < channel.samples.size()){\
             end++;
         }
+        channel.last_read = end ;
         int start = end-1; // start frame is the frame before that
         
         float t = 0.5f;
@@ -1191,24 +1196,14 @@ void GLTF::animate(const Animation& animation, float time){
             t = (time-start_time) / (end_time-start_time); 
         }
 
-        //printf("Start key: %d End key: %d\n", start, end);
         if(channel.path == SCALE){
             nodes[channel.node].scale = channel.samples[start].second * (1-t) +  channel.samples[end].second * t;
-            //printf("Animated %s t = %f scale: %f, %f, %f\n", nodes[channel.node].name.c_str(), t, nodes[channel.node].scale[0], nodes[channel.node].scale[1], nodes[channel.node].scale[2]);
         }else if(channel.path == TRANSLATION){
             nodes[channel.node].translation = channel.samples[start].second * (1-t) +  channel.samples[end].second * t;
-            //printf("Animated %s t = %f translation: %f, %f, %f\n", nodes[channel.node].name.c_str(), t, nodes[channel.node].translation[0], nodes[channel.node].translation[1], nodes[channel.node].translation[2]);
-        
         }else if(channel.path == ROTATION){
             auto start_quat = glm::quat(channel.samples[start].second[3], channel.samples[start].second[0], channel.samples[start].second[1], channel.samples[start].second[2]) ;
             auto end_quat = glm::quat(channel.samples[end].second[3], channel.samples[end].second[0], channel.samples[end].second[1], channel.samples[end].second[2]) ;
-            
             nodes[channel.node].rotation = glm::mix(start_quat, end_quat, t);
-            
-            //nodes[channel.node].rotation = glm::quat(channel.samples[start].second) ;
-            //nodes[channel.node].rotation = glm::quat(channel.samples[start].second[3], channel.samples[start].second[0], channel.samples[start].second[1], channel.samples[start].second[2]) ;
-            //printf("Animated %s t = %f rotation: %f, %f, %f, %f\n", nodes[channel.node].name.c_str(), t, nodes[channel.node].rotation.w, nodes[channel.node].rotation.x, nodes[channel.node].rotation.y, nodes[channel.node].rotation.z);
-
         }
     }
     computeNodeMatrices();
