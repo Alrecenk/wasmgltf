@@ -29,8 +29,9 @@ class GLTF{
 
             glm::ivec4 joints = {0,0,0,0}; // Nodes this vertex is skinned to if any
             glm::vec4 weights = {0,0,0,0}; // weights for each skinning node
-            std::vector<glm::vec4> base_position ; // position in linear skin local space
-            std::vector<glm::vec4> base_normal ; //notmal in linjear skin local space
+            
+            glm::vec3 transformed_position ; // position in linear skin local space
+            glm::vec3 transformed_normal ; //notmal in linjear skin local space
             
         };
 
@@ -71,8 +72,8 @@ class GLTF{
             glm::vec3 base_scale = {1.0f,1.0f,1.0f};
             glm::vec3 base_translation = {0.0f, 0.0f, 0.0f};
 
-            // global transform computed from components
-            glm::mat4 absolute_transform;
+            glm::mat4 inv_transform ; //transform from starting coordinates into bone space
+            glm::mat4 transform ; // combines model position, inverse, and current node transform for vertex manipulation from base coordinates
         };
 
         enum Path {ROTATION, TRANSLATION, SCALE};
@@ -156,10 +157,12 @@ class GLTF{
         void computeNodeMatrices(int node_id, const glm::mat4& transform);
         
         // Computes base vertices for skinned vertices so they can later use apply node transforms
-        void computeBaseVertices();
+        void computeInvMatrices();
 
         // Applies current absolute node matrices to skinned vertices
         void applyTransforms();
+
+        void setBasePose();
 
         // hashes a vertex to allow duplicates to be detected
         int hashVertex(glm::vec3 v);
