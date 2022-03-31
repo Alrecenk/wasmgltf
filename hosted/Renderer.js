@@ -506,7 +506,13 @@ class Renderer{
       // Called every time the XRSession requests that a new frame be drawn.
     onXRFrame(time, frame) {
 
-        window.setTimeout(tools.renderer.animate,1);
+        let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
+        if(new_buffer_data && Object.keys(new_buffer_data).length > 0 && "material" in new_buffer_data[0]){
+            tools.renderer.clearBuffers();
+        }
+        for(let id in new_buffer_data){
+            tools.renderer.prepareBuffer(id, new_buffer_data[id]);
+        }
 
          // console.log(time);
         let session = frame.session;
@@ -638,24 +644,4 @@ class Renderer{
         }
 
     }
-
-    animating = false;
-    animate(){
-        if(!this.animating){
-            this.animating = true;
-
-            let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
-            if(new_buffer_data && Object.keys(new_buffer_data).length > 0 && "material" in new_buffer_data[0]){
-                tools.renderer.clearBuffers();
-            }
-            for(let id in new_buffer_data){
-                tools.renderer.prepareBuffer(id, new_buffer_data[id]);
-            }
-
-            this.animating = false;
-        }
-    }
-    
-
-
 }
