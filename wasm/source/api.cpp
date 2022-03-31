@@ -85,7 +85,7 @@ byte* setModel(byte* ptr){
     for(int k=0;k<model_global.vertices.size();k++){
         model_global.vertices[k].position = (model_global.vertices[k].position-center)*(1.0f/size);
     }*/
-    model_global.computeBaseVertices();
+    
 
     model_global.transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
     model_global.transform  = glm::translate(model_global.transform, center*-1.0f);
@@ -190,6 +190,8 @@ byte* nextAnimation(byte* ptr){
     selected_animation = selected_animation+1;
     if(selected_animation >= model_global.animations.size()){
         selected_animation = -1;
+        model_global.setBasePose();
+        model_global.applyTransforms();
     }
     animation_start_time = now();
     return emptyReturn();

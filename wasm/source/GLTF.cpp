@@ -161,17 +161,17 @@ Variant GLTF::getChangedBuffer(int selected_material){
         if(this->triangles[k].material == selected_material){
             Triangle& t = this->triangles[k];
             // A
-            vec3& A = vertices[t.A].position;
+            vec3& A = vertices[t.A].transformed_position;
             pos_buffer_array[j9] = A.x;
             pos_buffer_array[j9+1] = A.y;
             pos_buffer_array[j9+2] = A.z;
             // B
-            vec3& B = vertices[t.B].position;
+            vec3& B = vertices[t.B].transformed_position;
             pos_buffer_array[j9+3] = B.x;
             pos_buffer_array[j9+4] = B.y;
             pos_buffer_array[j9+5] = B.z;
             // C
-            vec3& C = vertices[t.C].position;
+            vec3& C = vertices[t.C].transformed_position;
             pos_buffer_array[j9+6] = C.x;
             pos_buffer_array[j9+7] = C.y;
             pos_buffer_array[j9+8] = C.z;
@@ -869,7 +869,7 @@ void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Trian
         if(v.y > this->max.y)this->max.y = v.y;
         if(v.z > this->max.z)this->max.z = v.z;
     }
-    computeBaseVertices();
+    computeInvMatrices();
     this->model_changed = true;
     this->position_changed = true;
 
@@ -947,58 +947,38 @@ float GLTF::rayTrace(const vec3 &p, const vec3 &v){
     }return -1;
 }
 
-// Computes absolute node matrices from their componentsand nesting
+// Computes node transform matrices from their components and nesting
 void GLTF::computeNodeMatrices(int node_id, const glm::mat4& transform){
     Node& node = nodes[node_id];
-    node.absolute_transform = transform ;
-    node.absolute_transform = glm::translate(node.absolute_transform, node.translation);
-    node.absolute_transform *= glm::mat4_cast(node.rotation);
-    node.absolute_transform = glm::scale(node.absolute_transform, node.scale);
+    node.transform = transform ;
+    node.transform = glm::translate(node.transform, node.translation);
+    node.transform *= glm::mat4_cast(node.rotation);
+    node.transform = glm::scale(node.transform, node.scale);
+    
     for(int k=0;k<node.children.size();k++){
-        computeNodeMatrices(node.children[k], node.absolute_transform);
+        computeNodeMatrices(node.children[k], node.transform);
     }
+    node.transform = node.transform * node.inv_transform;
 }
 
  // Computes base vertices for skinned vertices so they can later use apply node transforms
-void GLTF::computeBaseVertices(){
+void GLTF::computeInvMatrices(){
+    for(auto& [node_id, node] : nodes){
+        if(node_id <= max_node_id){ // TODO I don't know how garbage gets in here, but it does on repeated loads sometimes
+            node.inv_transform = mat4(1) ;
+        }
+    }
     for(int k=0;k<root_nodes.size();k++){
         computeNodeMatrices(root_nodes[k], glm::mat4(1.0f));
     } 
-
-    // need to flatten nodes into a vector since we're fetching them in the vertex loop
-    //printf("Max node id: %d\n",max_node_id);
-    vector<mat4> node_matrix_inv(max_node_id+1) ;
-    for(const auto& [node_id, node] : nodes){
+    for(auto& [node_id, node] : nodes){
         if(node_id <= max_node_id){ // TODO I don't know how garbage gets in here, but it does on repeated loads sometimes
-            node_matrix_inv[node_id] = glm::inverse(node.absolute_transform) ;
-        }
-    }
-
-    for(int k=0;k<vertices.size();k++){
-        Vertex& v = vertices[k];
-        v.base_position = vector<vec4>();
-        v.base_normal = vector<vec4>();
-        float total_weight = 0 ;
-        for(int j=0;j<4;j++){
-            v.base_position.push_back({0,0,0,0});
-            v.base_normal.push_back({0,0,0,0});
-            if(v.weights[j] > 0){
-                mat4& inv = node_matrix_inv[v.joints[j]];
-                v.base_position[j] = inv *  vec4(v.position, 1) * v.weights[j];
-                v.base_normal[j] = inv* vec4(v.normal, 0) * v.weights[j];
-                total_weight += v.weights[j];
-            }
-
-        }
-        // If no rigging keep starting position as base position with no weight
-        if(total_weight <= 0.01){
-            v.base_position[0] = vec4(v.position,1);
-            v.base_normal[0] = vec4(v.normal,0);
+            node.inv_transform = glm::inverse(node.transform) ;
         }
     }
 }
 
-// Applies current absolute node matrices to skinned vertices
+// Applies current node transformed to skinned vertices
 void GLTF::applyTransforms(){
     for(int k=0;k<root_nodes.size();k++){
         computeNodeMatrices(root_nodes[k], this->transform);
@@ -1009,7 +989,7 @@ void GLTF::applyTransforms(){
     vector<mat4> node_matrix(max_node_id+1) ;
     for(const auto& [node_id, node] : nodes){
         if(node_id <= max_node_id){ // TODO I don't know how garbage gets in here, but it does on repeated loads sometimes
-            node_matrix[node_id] = node.absolute_transform ;
+            node_matrix[node_id] = node.transform ;
         }
     }
     
@@ -1023,24 +1003,35 @@ void GLTF::applyTransforms(){
             if(weights[j] > 0){
                 //printf("joint: %d\n", joints[j]);
                 mat4& transform = node_matrix[joints[j]];
-                p += transform * v.base_position[j] ;
-                n += transform * v.base_normal[j];
+                p += transform * vec4(v.position,1) * weights[j] ;
+                n += transform * vec4(v.normal,0) * weights[j];
                 has_rigging = true;
             }
         }
         
         if(has_rigging){
-            v.position = p;
-            v.normal = n ;
+            v.transformed_position = p;
+            v.transformed_normal = n ;
         }else{ // no rigging, apply transform to starting position of vertices
-            v.position = this->transform*v.base_position[0];
-            v.normal = this->transform*v.base_normal[0];
+            v.transformed_position = this->transform*vec4(v.position,1);
+            v.transformed_normal = this->transform*vec4(v.normal,0);
         }
-        v.normal = glm::normalize(v.normal);
+        v.transformed_normal = glm::normalize(v.transformed_normal);
     }
     
     this->position_changed = true;
 }
+
+void GLTF::setBasePose(){
+    for(auto& [node_id, node] : nodes){
+        if(node_id <= max_node_id){
+            node.translation = node.base_translation;
+            node.scale = node.base_scale;
+            node.rotation = node.base_rotation;
+        }
+    }
+}
+
 
 // Sets transforms to the given enimation 
 // Does not change transforms unaffected by snimation, does not apply transforms to vertices
