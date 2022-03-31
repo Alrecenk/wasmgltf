@@ -552,10 +552,13 @@ vector<Variant> Variant::getVariantArray() const {
     return Variant::deserializeVariantArray(ptr);
 }
 
-Variant  Variant::operator [](int i) const{
-    // TODO caching?
+Variant  Variant::operator [](int i){
     if(type_ == VARIANT_ARRAY){
-        return getVariantArray()[i];
+        if(cached_array.size() == 0){
+            cached_array = getVariantArray();
+        }
+        return cached_array[i];
+        //return getVariantArray()[i];
     }else if(type_ == INT_OBJECT){
         return getIntObject()[i];
     }else if(type_ == BYTE_OBJECT){
@@ -575,16 +578,19 @@ Variant  Variant::operator [](int i) const{
     }
 }
 
-Variant  Variant::operator [](std::string i) const{
-    // TODO caching?
+Variant  Variant::operator [](std::string i){
     if(type_ == OBJECT){
-        return getObject()[i];
+        if(cached_object.size() == 0){
+            cached_object = getObject();
+        }
+        return cached_object[i];
+        //return getObject()[i];
     }else{
         return Variant();
     }
 }
 
-Variant Variant::operator [](Variant i) const{
+Variant Variant::operator [](Variant i){
     if(i.type_ == INT){
         return this->operator[](i.getInt());
     }else if(i.type_ == STRING){

@@ -67,6 +67,9 @@ void setPacketPointer(byte* p){
 // Wrappers to model functions applied to model global are made available to callers
 // Expects an object with vertices and faces
 byte* setModel(byte* ptr){
+
+    
+    auto start_time = now();
     auto obj = Variant::deserializeObject(ptr);
     byte* byte_array = obj["data"].getByteArray();
     int num_bytes = obj["data"].getArrayLength();
@@ -97,6 +100,10 @@ byte* setModel(byte* ptr){
     map<string, Variant> ret_map;
     ret_map["center"] = Variant(center);
     ret_map["size"] = Variant(size);
+
+    int millis = millisBetween(start_time, now());
+    printf("Total model load time: %d ms\n", millis);
+
     return pack(ret_map);
 }
 
@@ -107,8 +114,9 @@ byte* getUpdatedBuffers(byte* ptr){
     if(selected_animation >= 0){
         auto& animation = model_global.animations[selected_animation];
         float time = millisBetween(animation_start_time, now()) / 1000.0f;
-            while(time > animation.duration){
-                time-= animation.duration;
+            if(time > animation.duration){
+                time = 0 ;
+                animation_start_time = now();
             }
         model_global.animate(animation,time);
         //model_global.applyTransforms();
@@ -189,6 +197,9 @@ byte* scan(byte* ptr){
 }
 
 byte* nextAnimation(byte* ptr){
+    if(millisBetween(animation_start_time, now()) < 50){
+        return emptyReturn();
+    }
     selected_animation = selected_animation+1;
     if(selected_animation >= model_global.animations.size()){
         selected_animation = -1;

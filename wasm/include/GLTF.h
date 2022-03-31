@@ -136,24 +136,26 @@ class GLTF{
         void setModel(const std::vector<Vertex>& vertices, const std::vector<Triangle>& triangles);
 
         void addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-            const Variant& primitive, int skin_id, const glm::mat4& transform, const Variant& json, const Variant& bin);
+            Variant& primitive, int skin_id, const glm::mat4& transform, Variant& json, const Variant& bin);
 
         void addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-            int mesh_id, int skin_id, const glm::mat4& transform, const Variant& json, const Variant& bin);
+            int mesh_id, int skin_id, const glm::mat4& transform, Variant& json, const Variant& bin);
 
         void addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-            int node_id, const glm::mat4& transform, const Variant& json, const Variant& bin);
+            int node_id, const glm::mat4& transform, Variant& json, const Variant& bin);
 
         void addScene(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-            int scene_id, const Variant& json, const Variant& bin);
+            int scene_id, Variant& json, const Variant& bin);
 
-        static Accessor access(int accessor_id, const Variant& json, const Variant& bin);
+        static Accessor access(int accessor_id, Variant& json, const Variant& bin);
 
-        void addMaterial(int material_id, const Variant& json, const Variant& bin);
+        static Accessor access(int accessor_id, std::vector<Variant>& accessors, std::vector<Variant>& views, const Variant& bin);
 
-        void addImage(int image_id, const Variant& json, const Variant& bin);
+        void addMaterial(int material_id, Variant& json, const Variant& bin);
 
-        void addAnimation(const Variant& animation, const Variant& json, const Variant& bin);
+        void addImage(int image_id, Variant& json, const Variant& bin);
+
+        void addAnimation(Variant& animation, Variant& json, const Variant& bin);
 
         // Computes absolute node matrices from their componentsand nesting
         void computeNodeMatrices(int node_id, const glm::mat4& transform);

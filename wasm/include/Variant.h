@@ -33,6 +33,9 @@ class Variant {
     Type type_; // Type of object pointed to by ptr
     byte* ptr; // Pointer to data
 
+
+    std::vector<Variant> cached_array;
+    std::map<std::string, Variant> cached_object ;
     /* Constructor is overloaded for every supported type
     Complex objects are built from other Variants so must be built from the bottom up
     Creation of new Variants always copy the source data in its entirety (use wisely)
@@ -143,11 +146,11 @@ class Variant {
     // Returns the array on a Variant holding a Variant array
     std::vector<Variant> getVariantArray() const;
 
-    Variant operator [](int i) const;
+    Variant operator [](int i);
 
-    Variant operator [](std::string i) const;
+    Variant operator [](std::string i);
 
-    Variant operator [](Variant i) const;
+    Variant operator [](Variant i);
 
     bool defined() const;
     

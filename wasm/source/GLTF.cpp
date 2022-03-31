@@ -348,7 +348,6 @@ Variant GLTF::getChangedBuffer(int selected_material){
                 memcpy(bone_buffer_array + (node_id*16), &(node.transform), 64);
             }
         }
-
     }
 
 
@@ -421,7 +420,7 @@ void GLTF::setModel(const byte* data, int data_length){
                 //json["animations"].printFormatted();
                 if(json["animations"].defined()){
                     vector<Variant> animations = json["animations"].getVariantArray();
-                    for(const Variant& animation : animations){
+                    for(Variant& animation : animations){
                         addAnimation(animation, json, bin);
                     }
                 }
@@ -439,14 +438,20 @@ void GLTF::setModel(const byte* data, int data_length){
 
 }
 
-GLTF::Accessor GLTF::access(int accessor_id, const Variant& json, const Variant& bin){
+GLTF::Accessor GLTF::access(int accessor_id, Variant& json, const Variant& bin){
+    vector<Variant> accessors = json["accessors"].getVariantArray();
+    vector<Variant> views = json["bufferViews"].getVariantArray() ;
+    return access(accessor_id, accessors, views , bin);
+   
+}
 
-    
-    map<string,int> TYPE_LENGTH = {{"SCALAR",1},{"VEC2",2},{"VEC3",3},{"VEC4",4},{"MAT2",4},{"MAT3",9},{"MAT4",16}} ; // TODO static const
+
+GLTF::Accessor GLTF::access(int accessor_id, vector<Variant>& accessors, vector<Variant>& views, const Variant& bin){
+     map<string,int> TYPE_LENGTH = {{"SCALAR",1},{"VEC2",2},{"VEC3",3},{"VEC4",4},{"MAT2",4},{"MAT3",9},{"MAT4",16}} ; // TODO static const
     map<int,int> COMPONENT_LENGTH = {{5120, 1},{5121, 1},{5122, 2},{5123, 2},{5125, 4},{5126, 4}}; // TODO static const
 
     
-    auto accessor = json["accessors"][accessor_id];
+    auto& accessor = accessors[accessor_id];
     //printf("accessor:\n");
     //accessor.printFormatted();
     string type = accessor["type"].getString();
@@ -454,20 +459,23 @@ GLTF::Accessor GLTF::access(int accessor_id, const Variant& json, const Variant&
     int count = accessor["count"].getInt();
     int element_length = TYPE_LENGTH[type] * COMPONENT_LENGTH[c_type];
 
-    auto view = json["bufferViews"][accessor["bufferView"]];
+    auto& view = views[accessor["bufferView"].getInt()];
     int offset = 0 ;
-    if(view["byteOffset"].defined()){
-        offset = view["byteOffset"].getInt();
+    Variant v_offset = view["byteOffset"];
+    if(v_offset.defined()){
+        offset = v_offset.getInt();
     }
-    if(accessor["byteOffset"].defined()){
-        offset += accessor["byteOffset"].getInt();
+    Variant a_offset = accessor["byteOffset"] ;
+    if(a_offset.defined()){
+        offset += a_offset.getInt();
     }
     int byteLength = view["byteLength"].getInt();
     //printf("view:\n");
     //view.printFormatted();
     int stride = element_length;
-    if(view["byteStride"].defined()){
-        stride = view["byteStride"].getInt();
+    Variant v_stride = view["byteStride"] ;
+    if(v_stride.defined()){
+        stride = v_stride.getInt();
     }
 
     GLTF::Accessor result = {type, c_type, Variant()};
@@ -491,13 +499,14 @@ GLTF::Accessor GLTF::access(int accessor_id, const Variant& json, const Variant&
     }
 
     return result ;
+
 }
 
 
 
 //TODO consider using quaternion down the hierarchy recursion instead of mat4 for better precision/speed.
 void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-                        const Variant& primitive, int skin_id, const glm::mat4& transform, const Variant& json, const Variant& bin){
+                        Variant& primitive, int skin_id, const glm::mat4& transform, Variant& json, const Variant& bin){
     //printf("Adding primitive:\n");
     //primitive.printFormatted();
     if(primitive["mode"].defined() && primitive["mode"].getInt() != 4){
@@ -710,7 +719,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
     }
 }
 
-void GLTF::addMaterial(int material_id, const Variant& json, const Variant& bin){
+void GLTF::addMaterial(int material_id, Variant& json, const Variant& bin){
     if(this->materials.find(material_id) == this->materials.end()){
         //printf("Adding material %d!\n", material_id);
         Variant m_json = json["materials"][material_id];
@@ -764,7 +773,7 @@ void GLTF::addMaterial(int material_id, const Variant& json, const Variant& bin)
     }
 }
 
-void GLTF::addImage(int image_id, const Variant& json, const Variant& bin){
+void GLTF::addImage(int image_id, Variant& json, const Variant& bin){
     //printf("Adding image %d!\n", image_id);
     if(this->images.find(image_id) == this->images.end()){
         Image& img = this->images[image_id] ;
@@ -797,17 +806,17 @@ void GLTF::addImage(int image_id, const Variant& json, const Variant& bin){
 }
 
 void GLTF::addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-                   int mesh_id, int skin_id, const glm::mat4& transform, const Variant& json, const Variant& bin){
+                   int mesh_id, int skin_id, const glm::mat4& transform, Variant& json, const Variant& bin){
     //printf("Adding mesh %d!\n", mesh_id);
 
-    auto primitives = json["meshes"][mesh_id]["primitives"];
-    for(int k=0;k<primitives.getArrayLength();k++){
+    auto primitives = json["meshes"][mesh_id]["primitives"].getVariantArray();
+    for(int k=0;k<primitives.size();k++){
         addPrimitive(vertices, triangles, primitives[k], skin_id, transform, json, bin);
     }
 }
 
 void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-                   int node_id, const glm::mat4& transform, const Variant& json, const Variant& bin){
+                   int node_id, const glm::mat4& transform, Variant& json, const Variant& bin){
     //printf("Adding node %d!\n", node_id);
     auto node = json["nodes"][node_id];
     Node& node_struct = nodes[node_id];
@@ -861,7 +870,7 @@ void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangl
 }
 
 void GLTF::addScene(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-                    int scene_id, const Variant& json, const Variant& bin){
+                    int scene_id, Variant& json, const Variant& bin){
     printf("Adding scene %d!\n", scene_id);
     auto nodes = json["scenes"][scene_id]["nodes"];
     glm::mat4 ident(1);
@@ -873,15 +882,19 @@ void GLTF::addScene(std::vector<Vertex>& vertices, std::vector<Triangle>& triang
 }
 
 
-void GLTF::addAnimation(const Variant& animation_json, const Variant& json, const Variant& bin){
+void GLTF::addAnimation(Variant& animation_json, Variant& json, const Variant& bin){
     //animation.printFormatted();
     
     Animation animation ;
     animation.name = animation_json["name"].getString();
     printf("Adding animation %s!\n", animation.name.c_str());
+
+    vector<Variant> accessors = json["accessors"].getVariantArray();
+    vector<Variant> views = json["bufferViews"].getVariantArray() ;
+
     vector<Variant> samplers_json = animation_json["samplers"].getVariantArray() ;
     vector<Variant> channels_json = animation_json["channels"].getVariantArray() ;
-    for(const Variant& channel_json : channels_json){
+    for(Variant& channel_json : channels_json){
         AnimationChannel channel ;
         channel.node = (int)channel_json["target"]["node"].getNumberAsFloat();
         string type = channel_json["target"]["path"].getString();
@@ -901,8 +914,8 @@ void GLTF::addAnimation(const Variant& animation_json, const Variant& json, cons
         }
 
         Variant& sampler = samplers_json[channel_json["sampler"].getInt()];
-        Accessor input = access(sampler["input"].getInt(), json, bin);
-        Accessor output = access(sampler["output"].getInt(), json, bin);
+        Accessor input = access(sampler["input"].getInt(), accessors, views, bin);
+        Accessor output = access(sampler["output"].getInt(), accessors, views, bin);
         int num_samples = input.data.getArrayLength();
         float* times = input.data.getFloatArray();
         float* values = output.data.getFloatArray();
