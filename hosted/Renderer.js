@@ -121,8 +121,13 @@ class Renderer{
         this.gl.enableVertexAttribArray(this.shaderProgram.vertexTexcoordAttribute);
         this.shaderProgram.vertexColorAttribute = this.gl.getAttribLocation(this.shaderProgram, "aVertexColor");
         this.gl.enableVertexAttribArray(this.shaderProgram.vertexColorAttribute);
+        this.shaderProgram.jointsAttribute = this.gl.getAttribLocation(this.shaderProgram, "aJoints");
+        this.gl.enableVertexAttribArray(this.shaderProgram.jointsAttribute);
+        this.shaderProgram.weightsAttribute = this.gl.getAttribLocation(this.shaderProgram, "aWeights");
+        this.gl.enableVertexAttribArray(this.shaderProgram.weightsAttribute);
         this.shaderProgram.pMatrixUniform = this.gl.getUniformLocation(this.shaderProgram, "uPMatrix");
         this.shaderProgram.mvMatrixUniform = this.gl.getUniformLocation(this.shaderProgram, "uMVMatrix");
+        this.shaderProgram.bonesUniform = this.gl.getUniformLocation(this.shaderProgram, "uBones");
         this.shaderProgram.light_point = this.gl.getUniformLocation(this.shaderProgram, "u_light_point");
         this.shaderProgram.texture = this.gl.getUniformLocation(this.shaderProgram, "u_texture");
         this.shaderProgram.has_texture = this.gl.getUniformLocation(this.shaderProgram, "u_has_texture");
@@ -306,6 +311,8 @@ class Renderer{
             this.buffers[id].normal = this.gl.createBuffer();
             this.buffers[id].tex_coord = this.gl.createBuffer();
             this.buffers[id].texture_id = -1;
+            this.buffers[id].joints = this.gl.createBuffer();
+            this.buffers[id].weights= this.gl.createBuffer();
         }
         let num_vertices = buffer_data.vertices ;
         if(num_vertices == 0){
@@ -338,8 +345,20 @@ class Renderer{
             this.gl.bufferData(this.gl.ARRAY_BUFFER, buffer_data.tex_coord, this.gl.STATIC_DRAW);
             this.buffers[id].tex_coord.itemSize = 2;
             this.buffers[id].tex_coord.numItems = num_vertices;
-            //console.log("Got texture coords:\n");
-            //console.log(buffer_data.tex_coord);
+        }
+
+        if(buffer_data.weights){
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers[id].weights );
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, buffer_data.weights, this.gl.STATIC_DRAW);
+            this.buffers[id].weights.itemSize = 4;
+            this.buffers[id].weights.numItems = num_vertices;
+        }
+
+        if(buffer_data.joints){
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers[id].joints );
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, buffer_data.joints, this.gl.STATIC_DRAW);
+            this.buffers[id].joints.itemSize = 4;
+            this.buffers[id].joints.numItems = num_vertices;
         }
 
         if(buffer_data.material){
@@ -381,6 +400,10 @@ class Renderer{
 
         }
 
+        if(buffer_data.bones){
+            this.gl.uniformMatrix4fv(this.shaderProgram.uBones, false, buffer_data.bones);
+        }
+
         this.buffers[id].ready = true;
     }
 
@@ -390,6 +413,8 @@ class Renderer{
             let color_buffer = buffer.color;
             let normal_buffer = buffer.normal;
             let tex_coord_buffer = buffer.tex_coord;
+            let joints_buffer = buffer.joints;
+            let weights_buffer = buffer.weights;
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, position_buffer);
             this.gl.vertexAttribPointer(this.shaderProgram.vertexPositionAttribute, position_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, normal_buffer);
@@ -398,7 +423,11 @@ class Renderer{
             this.gl.vertexAttribPointer(this.shaderProgram.vertexTexcoordAttribute, tex_coord_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, color_buffer);
             this.gl.vertexAttribPointer(this.shaderProgram.vertexColorAttribute, color_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
-            
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, joints_buffer);
+            this.gl.vertexAttribPointer(this.shaderProgram.jointsAttribute, joints_buffer.itemSize, this.gl.INT, false, 0, 0);
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, weights_buffer);
+            this.gl.vertexAttribPointer(this.shaderProgram.weightsAttribute, weights_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
+
             if(buffer.texture_id >= 0){
                 //console.log("Drawing texture for index " + (buffer.texture_id+2) +"\n");
                 this.gl.activeTexture(this.gl.TEXTURE0 + buffer.texture_id );

@@ -116,6 +116,7 @@ class GLTF{
         glm::vec3 max; // maximum values in each axis part of AABB
         bool position_changed = false;
         bool model_changed = false;
+        bool bones_changed = false;
         int last_traced_tri ; // Index of last triangle hit by raytrace
 
         // Constructor
@@ -182,6 +183,8 @@ class GLTF{
         // Performs the duplicate work for the various get vertex buffer functions
         Variant getFloatBuffer(std::vector<glm::vec3>& ptr, int material);
         Variant getFloatBuffer(std::vector<glm::vec2>& ptr, int material);
+        Variant getFloatBuffer(std::vector<glm::vec4>& ptr, int material);
+        Variant getFloatBuffer(std::vector<glm::ivec4>& ptr, int material);
 
         // returns the normal of a triangle
         glm::vec3 getNormal(Triangle t);

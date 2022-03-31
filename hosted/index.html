@@ -85,9 +85,12 @@ body {
     in vec3 aVertexColor;
 	in vec3 aNormal;
     in vec2 aTexcoord;
+    in ivec4 aJoints;
+    in vec4 aWeights;
 
     uniform mat4 uMVMatrix;
     uniform mat4 uPMatrix;
+    uniform mat4 uBones[200];
 
     out vec3 v_color;
 	out vec3 v_position;
@@ -95,11 +98,18 @@ body {
     out vec2 v_texcoord;
 
     void main(void) {
-        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+        vec4 x = vec4(aVertexPosition, 1) ;
+        v_position = vec3(uBones[aJoints[0]] * x * aWeights[0] + 
+                     uBones[aJoints[1]] * x * aWeights[1] + 
+                     uBones[aJoints[2]] * x * aWeights[2] + 
+                     uBones[aJoints[3]] * x * aWeights[3] );
+
+        
         v_color = aVertexColor;
-		v_position = aVertexPosition; 
+		//v_position = aVertexPosition; 
 		v_normal = aNormal;
         v_texcoord = aTexcoord;
+        gl_Position = uPMatrix * uMVMatrix * vec4(v_position, 1.0);
     }
 </script>
 

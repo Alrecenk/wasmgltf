@@ -116,7 +116,7 @@ byte* getUpdatedBuffers(byte* ptr){
 
     map<string,Variant> buffers;
     //st = now();
-    if(model_global.position_changed || model_global.model_changed){
+    if(model_global.position_changed || model_global.model_changed || model_global.bones_changed){
         for(auto const & [material_id, mat]: model_global.materials){
             std::stringstream ss;
             ss << material_id;
@@ -125,6 +125,7 @@ byte* getUpdatedBuffers(byte* ptr){
         }
         model_global.position_changed = false;
         model_global.model_changed = false;
+        model_global.bones_changed = false;
         /*
         for(int k=0;k<model_global.triangles.size();k++){
             if(model_global.materials.find(model_global.triangles[k].material) == model_global.materials.end()){

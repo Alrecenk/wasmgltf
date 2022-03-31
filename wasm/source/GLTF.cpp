@@ -124,8 +124,107 @@ Variant GLTF::getFloatBuffer(std::vector<glm::vec2>& point_list, int material){
     return buffer ;
 }
 
-// Returns a Variant of openGL triangle buffers for displaying this mesh_ in world_ space
 
+// Returns a Variant of 3 vec4's'for each each triangle dereferenced
+// Used to get arrays for displaying with a simple shader
+Variant GLTF::getFloatBuffer(std::vector<glm::vec4>& point_list, int material){
+
+    int num_triangles = 0 ;
+    for(int k=0;k<this->triangles.size();k++){
+        if(this->triangles[k].material == material){
+            num_triangles++;
+        }
+    }
+
+    //TODO this access pattern prevents these Variant members from being private 
+    // but using the constructor forces a copy that isn't necesarry 
+    // Maybe here should be an array constructor that just takes type and size
+    // and then the get array provides a shallow pointer that can't be freed?
+    Variant buffer;
+    buffer.type_ = Variant::FLOAT_ARRAY;
+    buffer.ptr = (byte*)malloc(4 + num_triangles * 12 * sizeof(float));
+    
+    *((int*)buffer.ptr) = num_triangles * 12 ;// number of floats in array
+    float* buffer_array =  (float*)(buffer.ptr+4) ; // pointer to start of float array
+    int j = 0 ;
+    for(int k=0;k<this->triangles.size();k++){
+        if(this->triangles[k].material == material){
+            Triangle& t = this->triangles[k];
+            // A
+            vec4& A = point_list[t.A];
+            buffer_array[j] = A.w;
+            buffer_array[j+1] = A.x;
+            buffer_array[j+2] = A.y;
+            buffer_array[j+3] = A.z;
+            // B
+            vec4& B = point_list[t.B];
+            buffer_array[j+4] = B.w;
+            buffer_array[j+5] = B.x;
+            buffer_array[j+6] = B.y;
+            buffer_array[j+7] = B.z;
+            // C
+            vec4& C = point_list[t.C];
+            buffer_array[j+8] = C.w;
+            buffer_array[j+9] = C.x;
+            buffer_array[j+10] = C.y;
+            buffer_array[j+11] = C.z;
+            j+=12;
+        }
+    }
+    return buffer ;
+}
+
+// Returns a Variant of 3 vec4's'for each each triangle dereferenced
+// Used to get arrays for displaying with a simple shader
+Variant GLTF::getFloatBuffer(std::vector<glm::ivec4>& point_list, int material){
+
+    int num_triangles = 0 ;
+    for(int k=0;k<this->triangles.size();k++){
+        if(this->triangles[k].material == material){
+            num_triangles++;
+        }
+    }
+
+    //TODO this access pattern prevents these Variant members from being private 
+    // but using the constructor forces a copy that isn't necesarry 
+    // Maybe here should be an array constructor that just takes type and size
+    // and then the get array provides a shallow pointer that can't be freed?
+    Variant buffer;
+    buffer.type_ = Variant::INT_ARRAY;
+    buffer.ptr = (byte*)malloc(4 + num_triangles * 12 * sizeof(int));
+    
+    *((int*)buffer.ptr) = num_triangles * 12 ;// number of floats in array
+    int* buffer_array =  (int*)(buffer.ptr+4) ; // pointer to start of float array
+    int j = 0 ;
+    for(int k=0;k<this->triangles.size();k++){
+        if(this->triangles[k].material == material){
+            Triangle& t = this->triangles[k];
+            // A
+            ivec4& A = point_list[t.A];
+            buffer_array[j] = A.w;
+            buffer_array[j+1] = A.x;
+            buffer_array[j+2] = A.y;
+            buffer_array[j+3] = A.z;
+            // B
+            ivec4& B = point_list[t.B];
+            buffer_array[j+4] = B.w;
+            buffer_array[j+5] = B.x;
+            buffer_array[j+6] = B.y;
+            buffer_array[j+7] = B.z;
+            // C
+            ivec4& C = point_list[t.C];
+            buffer_array[j+8] = C.w;
+            buffer_array[j+9] = C.x;
+            buffer_array[j+10] = C.y;
+            buffer_array[j+11] = C.z;
+            j+=12;
+        }
+    }
+    return buffer ;
+}
+
+
+// Returns a Variant of openGL triangle buffers for displaying this mesh in world space
 Variant GLTF::getChangedBuffer(int selected_material){
     std::map<string, Variant> buffers;
     
@@ -138,75 +237,79 @@ Variant GLTF::getChangedBuffer(int selected_material){
 
     buffers["vertices"] = Variant(num_triangles*3);
 
-    //TODO this access pattern prevents these Variant members from being private 
-    // but using the constructor forces a copy that isn't necesarry 
-    // Maybe here should be an array constructor that just takes type and size
-    // and then the get array provides a shallow pointer that can't be freed?
-    Variant& pos_buffer = buffers["position"];
-    pos_buffer.type_ = Variant::FLOAT_ARRAY;
-    pos_buffer.ptr = (byte*)malloc(4 + num_triangles * 9 * sizeof(float));
-    
-    *((int*)pos_buffer.ptr) = num_triangles * 9 ;// number of floats in array
-    float* pos_buffer_array =  (float*)(pos_buffer.ptr+4) ; // pointer to start of float array
+    if(this->position_changed){
+        Variant& pos_buffer = buffers["position"];
+        pos_buffer.type_ = Variant::FLOAT_ARRAY;
+        pos_buffer.ptr = (byte*)malloc(4 + num_triangles * 9 * sizeof(float));
+        
+        *((int*)pos_buffer.ptr) = num_triangles * 9 ;// number of floats in array
+        float* pos_buffer_array =  (float*)(pos_buffer.ptr+4) ; // pointer to start of float array
 
-    Variant& norm_buffer = buffers["normal"];
-    norm_buffer.type_ = Variant::FLOAT_ARRAY;
-    norm_buffer.ptr = (byte*)malloc(4 + num_triangles * 9 * sizeof(float));
-    
-    *((int*)norm_buffer.ptr) = num_triangles * 9 ;// number of floats in array
-    float* norm_buffer_array =  (float*)(norm_buffer.ptr+4) ; // pointer to start of float array
-    
-    int j9 = 0 ;
-    for(int k=0;k<this->triangles.size();k++){
-        if(this->triangles[k].material == selected_material){
-            Triangle& t = this->triangles[k];
-            // A
-            vec3& A = vertices[t.A].transformed_position;
-            pos_buffer_array[j9] = A.x;
-            pos_buffer_array[j9+1] = A.y;
-            pos_buffer_array[j9+2] = A.z;
-            // B
-            vec3& B = vertices[t.B].transformed_position;
-            pos_buffer_array[j9+3] = B.x;
-            pos_buffer_array[j9+4] = B.y;
-            pos_buffer_array[j9+5] = B.z;
-            // C
-            vec3& C = vertices[t.C].transformed_position;
-            pos_buffer_array[j9+6] = C.x;
-            pos_buffer_array[j9+7] = C.y;
-            pos_buffer_array[j9+8] = C.z;
+        Variant& norm_buffer = buffers["normal"];
+        norm_buffer.type_ = Variant::FLOAT_ARRAY;
+        norm_buffer.ptr = (byte*)malloc(4 + num_triangles * 9 * sizeof(float));
+        
+        *((int*)norm_buffer.ptr) = num_triangles * 9 ;// number of floats in array
+        float* norm_buffer_array =  (float*)(norm_buffer.ptr+4) ; // pointer to start of float array
+        
+        int j9 = 0 ;
+        for(int k=0;k<this->triangles.size();k++){
+            if(this->triangles[k].material == selected_material){
+                Triangle& t = this->triangles[k];
+                // A
+                vec3& A = vertices[t.A].transformed_position;
+                pos_buffer_array[j9] = A.x;
+                pos_buffer_array[j9+1] = A.y;
+                pos_buffer_array[j9+2] = A.z;
+                // B
+                vec3& B = vertices[t.B].transformed_position;
+                pos_buffer_array[j9+3] = B.x;
+                pos_buffer_array[j9+4] = B.y;
+                pos_buffer_array[j9+5] = B.z;
+                // C
+                vec3& C = vertices[t.C].transformed_position;
+                pos_buffer_array[j9+6] = C.x;
+                pos_buffer_array[j9+7] = C.y;
+                pos_buffer_array[j9+8] = C.z;
 
-            
-            // A
-            vec3& A2 = vertices[t.A].normal;
-            norm_buffer_array[j9] = A2.x;
-            norm_buffer_array[j9+1] = A2.y;
-            norm_buffer_array[j9+2] = A2.z;
-            // B
-            vec3& B2 = vertices[t.B].normal;
-            norm_buffer_array[j9+3] = B2.x;
-            norm_buffer_array[j9+4] = B2.y;
-            norm_buffer_array[j9+5] = B2.z;
-            // C
-            vec3& C2 = vertices[t.C].normal;
-            norm_buffer_array[j9+6] = C2.x;
-            norm_buffer_array[j9+7] = C2.y;
-            norm_buffer_array[j9+8] = C2.z;
-            
-            j9+=9;
+                
+                // A
+                vec3& A2 = vertices[t.A].normal;
+                norm_buffer_array[j9] = A2.x;
+                norm_buffer_array[j9+1] = A2.y;
+                norm_buffer_array[j9+2] = A2.z;
+                // B
+                vec3& B2 = vertices[t.B].normal;
+                norm_buffer_array[j9+3] = B2.x;
+                norm_buffer_array[j9+4] = B2.y;
+                norm_buffer_array[j9+5] = B2.z;
+                // C
+                vec3& C2 = vertices[t.C].normal;
+                norm_buffer_array[j9+6] = C2.x;
+                norm_buffer_array[j9+7] = C2.y;
+                norm_buffer_array[j9+8] = C2.z;
+                
+                j9+=9;
+            }
         }
     }    
 
     if(this->model_changed){
         vector<vec3> color ;
         vector<vec2> tex_coord;
+        vector<vec4> weights;
+        vector<ivec4> joints;
         for(const auto& v : this->vertices){
             color.push_back(v.color_mult);
             tex_coord.push_back(v.tex_coord);
+            weights.push_back(v.weights);
+            joints.push_back(v.joints);
         }
 
         buffers["color"] = this->getFloatBuffer(color, selected_material);
         buffers["tex_coord"] = this->getFloatBuffer(tex_coord, selected_material);    
+        buffers["weights"] = this->getFloatBuffer(weights, selected_material);
+        buffers["joints"] = this->getFloatBuffer(joints, selected_material);  
 
         const auto& mat = this->materials[selected_material] ;
         map<string,Variant> mat_map;
@@ -226,7 +329,28 @@ Variant GLTF::getChangedBuffer(int selected_material){
         }
         
         buffers["material"] = Variant(mat_map);
+
+
     }
+
+
+    if(this->bones_changed){
+        int num_bones = max_node_id+1 ;
+        Variant& bone_buffer = buffers["bones"];
+        bone_buffer.type_ = Variant::FLOAT_ARRAY;
+        bone_buffer.ptr = (byte*)malloc(4 + num_bones * 16 * sizeof(float));
+        *((int*)bone_buffer.ptr) = num_bones * 16 ;// number of floats in array
+        float* bone_buffer_array =  (float*)(bone_buffer.ptr+4) ; // pointer to start of float array
+
+        for(const auto& [node_id, node] : nodes){
+            if(node_id <= max_node_id){ // TODO I don't know how garbage gets in here, but it does on repeated loads sometimes
+                memcpy(bone_buffer_array + (node_id*16), &(node.transform), 64);
+            }
+        }
+
+    }
+
+
 
     return Variant(buffers);
 }
@@ -1082,4 +1206,6 @@ void GLTF::animate(const Animation& animation, float time){
 
         }
     }
+
+    this->bones_changed = true;
 }
