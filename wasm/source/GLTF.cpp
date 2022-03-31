@@ -336,7 +336,7 @@ Variant GLTF::getChangedBuffer(int selected_material){
 
     if(this->bones_changed){
         int num_bones = max_node_id+1 ;
-        int shader_num_bones = 256;
+        int shader_num_bones = 1024; // TODO avoid duplicate constant definition with bones texture
         Variant& bone_buffer = buffers["bones"];
         bone_buffer.type_ = Variant::FLOAT_ARRAY;
         bone_buffer.ptr = (byte*)malloc(4 + shader_num_bones * 16 * sizeof(float));
@@ -1091,6 +1091,7 @@ void GLTF::computeNodeMatrices(){
     for(int k=0;k<root_nodes.size();k++){
         computeNodeMatrices(root_nodes[k], this->transform);
     } 
+    this->bones_changed = true;
 }
 
  // Computes base vertices for skinned vertices so they can later use apply node transforms
