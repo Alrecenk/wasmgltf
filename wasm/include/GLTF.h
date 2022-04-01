@@ -171,6 +171,8 @@ class GLTF{
 
         void setBasePose();
 
+        static glm::quat slerp(glm::quat A, glm::quat B, float t);
+
         // hashes a vertex to allow duplicates to be detected
         int hashVertex(glm::vec3 v);
 
