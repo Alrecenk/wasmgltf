@@ -356,7 +356,6 @@ Variant GLTF::getChangedBuffer(int selected_material){
 }
 
 void GLTF::setModel(const byte* data, int data_length){
-    
     vector<Vertex> new_vertices;
     vector<Triangle> new_triangles;
     this->materials.clear();
@@ -410,21 +409,19 @@ void GLTF::setModel(const byte* data, int data_length){
                         }
                     }
                 }
+
                 int default_scene = 0 ;
                 if(json["scene"].defined()){
                     default_scene = json["scene"].getInt() ;
                 }
                 addScene(new_vertices, new_triangles, default_scene, json, bin) ;
 
-                //TODO get animations
-                //json["animations"].printFormatted();
                 if(json["animations"].defined()){
                     vector<Variant> animations = json["animations"].getVariantArray();
                     for(Variant& animation : animations){
                         addAnimation(animation, json, bin);
                     }
                 }
-
             }else{
                 printf("Bin chunk not found after json !(got %d)\n", second_chunk_type);
             }
@@ -950,7 +947,7 @@ void GLTF::addAnimation(Variant& animation_json, Variant& json, const Variant& b
 // Compacts the given vertices and sets the model to them
 void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Triangle>& triangles){
     
-
+    printf("set model internal called\n");
     this->vertices = vertices;
     this->triangles = triangles;
 

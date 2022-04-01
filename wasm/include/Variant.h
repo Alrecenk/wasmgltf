@@ -34,8 +34,8 @@ class Variant {
     byte* ptr; // Pointer to data
 
 
-    std::vector<Variant> cached_array;
-    std::map<std::string, Variant> cached_object ;
+    std::vector<Variant> cached_array = std::vector<Variant>();
+    std::map<std::string, Variant> cached_object = std::map<std::string, Variant>() ;
     /* Constructor is overloaded for every supported type
     Complex objects are built from other Variants so must be built from the bottom up
     Creation of new Variants always copy the source data in its entirety (use wisely)

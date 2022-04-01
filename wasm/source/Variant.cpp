@@ -280,6 +280,12 @@ Variant &Variant::operator=(Variant &&source) {
     ptr = source.ptr;
     source.type_ = NULL_VARIANT;
     source.ptr = nullptr;
+
+    cached_array = std::vector<Variant>();
+    cached_object = std::map<std::string, Variant>() ;
+    source.cached_array = std::vector<Variant>();
+    source.cached_object = std::map<std::string, Variant>() ;
+
     return *this;
 }
 
