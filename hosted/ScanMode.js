@@ -91,8 +91,6 @@ class ScanMode extends ExecutionMode{
             }
             */
         }
-        console.log("pointers down:");
-        console.log(pointers);
     }
 
 	pointerMove(pointers){
@@ -115,9 +113,6 @@ class ScanMode extends ExecutionMode{
                this.tools.renderer.continueRotate(pointers[0]);
             }
 		}
-
-        //console.log("pointers move:");
-        //console.log(pointers);
     }
 
     pointerUp(pointers){ // Note only pointers still down
@@ -130,8 +125,6 @@ class ScanMode extends ExecutionMode{
         this.mouse_down = false ;
         this.dragging = false;
         this.rotating = false;
-        console.log("pointers up:");
-        console.log(pointers);
     }
 
     mouseWheelListener(event){
