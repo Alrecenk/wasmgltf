@@ -1217,10 +1217,36 @@ void GLTF::animate(Animation& animation, float time){
         }else if(channel.path == ROTATION){
             auto start_quat = glm::quat(channel.samples[start].second[3], channel.samples[start].second[0], channel.samples[start].second[1], channel.samples[start].second[2]) ;
             auto end_quat = glm::quat(channel.samples[end].second[3], channel.samples[end].second[0], channel.samples[end].second[1], channel.samples[end].second[2]) ;
-            nodes[channel.node].rotation = glm::mix(start_quat, end_quat, t);
+            if(t > 1 || t < 0){
+                printf("invalid t: %f\n", t);
+            }
+            //nodes[channel.node].rotation = glm::mix(start_quat, end_quat, t);
+            nodes[channel.node].rotation = GLTF::slerp(start_quat, end_quat, t);
         }
     }
     computeNodeMatrices();
 
     this->bones_changed = true;
+}
+
+glm::quat GLTF::slerp(glm::quat A, glm::quat B, float t){
+    float cosTheta = glm::dot(A,B);
+    if(cosTheta < 0){
+        B*=-1;
+    }
+    if(cosTheta <.0001 || cosTheta > 0.9999){
+        glm::quat result = glm::quat(
+            A.w*(1-t) + B.w*t,
+            A.x*(1-t) + B.x*t,
+            A.y*(1-t) + B.y*t,
+            A.z*(1-t) + B.z*t);
+            result = glm::normalize(result);
+        return result ;
+    }else{
+        float angle = acos(cosTheta);
+        glm::quat result = (sin((1.0f - t) * angle) * A + sin(t * angle) * B) / sin(angle);
+        result = glm::normalize(result);
+        //printf("result: %f %f %f %f\n", result.w, result.x, result.y, result.z);
+        return result ;
+    }
 }
