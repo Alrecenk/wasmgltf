@@ -506,9 +506,12 @@ GLTF::Accessor GLTF::access(int accessor_id, vector<Variant>& accessors, vector<
 
 //TODO consider using quaternion down the hierarchy recursion instead of mat4 for better precision/speed.
 void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-                        Variant& primitive, int skin_id, const glm::mat4& transform, Variant& json, const Variant& bin){
+                        Variant& primitive, int node_id, const glm::mat4& transform, Variant& json, const Variant& bin){
     //printf("Adding primitive:\n");
     //primitive.printFormatted();
+    auto node = json["nodes"][node_id];
+    int skin_id = node["skin"].defined() ? node["skin"].getInt() : 0;
+
     if(primitive["mode"].defined() && primitive["mode"].getInt() != 4){
         printf("Primitive mode %d not implemented yet. Skipping.\n", primitive["mode"].getInt()); // TODO
         return ;
@@ -700,6 +703,9 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
                             joint_to_node[skin_id][joint_data[4*k+3]]) ;
             float scale = 1.0/(v.weights[0] + v.weights[1]+v.weights[2] + v.weights[3]);
             v.weights *= scale; ;
+        }else{
+            v.weights = vec4(1,0,0,0);
+            v.joints = ivec4(node_id,0,0,0);
         }
         vertices.push_back(v);
     }
@@ -806,12 +812,12 @@ void GLTF::addImage(int image_id, Variant& json, const Variant& bin){
 }
 
 void GLTF::addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-                   int mesh_id, int skin_id, const glm::mat4& transform, Variant& json, const Variant& bin){
+                   int mesh_id, int node_id, const glm::mat4& transform, Variant& json, const Variant& bin){
     //printf("Adding mesh %d!\n", mesh_id);
 
     auto primitives = json["meshes"][mesh_id]["primitives"].getVariantArray();
     for(int k=0;k<primitives.size();k++){
-        addPrimitive(vertices, triangles, primitives[k], skin_id, transform, json, bin);
+        addPrimitive(vertices, triangles, primitives[k], node_id, transform, json, bin);
     }
 }
 
@@ -856,8 +862,8 @@ void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangl
     
     if(node["mesh"].defined()){
         int mesh_id = node["mesh"].getInt();
-        int skin_id = node["skin"].defined() ? node["skin"].getInt() : 0;
-        addMesh(vertices, triangles, mesh_id, skin_id, new_transform, json, bin);
+        
+        addMesh(vertices, triangles, mesh_id, node_id, new_transform, json, bin);
     }
     if(node["children"].defined()){
         auto nodes = node["children"];

@@ -136,10 +136,10 @@ class GLTF{
         void setModel(const std::vector<Vertex>& vertices, const std::vector<Triangle>& triangles);
 
         void addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-            Variant& primitive, int skin_id, const glm::mat4& transform, Variant& json, const Variant& bin);
+            Variant& primitive, int node_id, const glm::mat4& transform, Variant& json, const Variant& bin);
 
         void addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
-            int mesh_id, int skin_id, const glm::mat4& transform, Variant& json, const Variant& bin);
+            int mesh_id, int node_id, const glm::mat4& transform, Variant& json, const Variant& bin);
 
         void addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
             int node_id, const glm::mat4& transform, Variant& json, const Variant& bin);
