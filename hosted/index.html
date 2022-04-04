@@ -148,9 +148,7 @@ const url_params = new URLSearchParams(window.location.search) ;
 var app; // The main app running on the CAD canvas
 var renderer ; // WebGl mesh_ renderer (mostly wraps C++ buffers)
 var current_mode ; // current execution mode
-var active_design_id = url_params.get("design") ? url_params.get("design") : "main";
 var imports = url_params.get("import") ? url_params.get("import").split(',') : [];
-//tools.sync_link = null; // SyncClient that runs the live synchronization socket interaction
 var buttons = {} ; // The canvas buttons on the UI canvas on top of the webGL canvas
 
 var tools  ; // a map containing several things above so execution modes can access them

@@ -10,6 +10,7 @@
 #include <chrono>
 #include <ctime>
 #include "glm/vec3.hpp"
+#include "TableReader.h"
 
 using std::vector;
 using std::string;
@@ -32,6 +33,13 @@ std::chrono::high_resolution_clock::time_point animation_start_time;
 byte* pack(std::map<std::string, Variant> packet){
     ret = Variant(packet);
     memcpy(packet_ptr, ret.ptr, ret.getSize()); // TODO figure out how to avoid this copy
+    return packet_ptr ;
+}
+
+// Note: Javascript deserializer expects string objects
+// This is only intended for server interfaces that don't deserialize in Javascript
+byte* pack(Variant packet){
+    memcpy(packet_ptr, packet.ptr, packet.getSize()); // TODO figure out how to avoid this copy
     return packet_ptr ;
 }
 
@@ -211,26 +219,28 @@ byte* nextAnimation(byte* ptr){
     return emptyReturn();
 }
 
-//Allocates an array of integers of a given size and returns a pointer to it.
-// Note: this is intended for testing JS to C++ pointer moves and memory limits and LEAKS MEMORY if not cleared on the JS side.
-byte* testAllocate(byte* ptr){
-    auto obj = Variant::deserializeObject(ptr);
-    int size = obj["size"].getInt();
-    int num = obj["num"].getInt();
 
-    int* array = new int[size];
-    for(int k=0;k<size;k++){
-        array[k] = num + k;
+// Returns the pending table requests that require a network request to fetch
+// Items which are already in the cache are given to objects when this is called
+//Note: this returns a pointer to VARIANT_ARRAY data but not the type, so it cannot be deserialized by default methods that assume an OBJECT type
+byte* getTableNetworkRequest(byte* nothing) {
+    TableReader::serveCachedRequests();
+    vector<string> requests = TableReader::getRequestedKeys();
+    vector<Variant> network_request;
+    network_request.reserve(requests.size());
+    for (const auto &key : requests) {
+        // emplace back constructs Variants from strings
+        network_request.emplace_back(key);
     }
-    printf("C++ array ptr: %ld\n", (long)array);
-    map<string, Variant> ret_map;
-    ret_map["ptr"] = Variant((int)array);
-    ret = Variant(ret_map);
-    printf("C++ ret ptr: %ld\n", (long)ret.ptr);
-    auto obj2 = Variant::deserializeObject(ret.ptr);
-    printf("C++ deserialized array ptr: %ld\n", (long)obj2["ptr"].getInt());
-    return pack(ret_map);
-
+    return pack(Variant(network_request));
 }
+
+//Caches and Distributes data from a network table data response
+byte* distributeTableNetworkData(byte* data_ptr) {
+    map<string, Variant> data = Variant::deserializeObject(data_ptr);
+    TableReader::receiveTableData(data);
+    return emptyReturn();
+}
+
 
 }// end extern C

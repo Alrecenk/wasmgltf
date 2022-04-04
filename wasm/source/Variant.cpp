@@ -1,5 +1,5 @@
 #include "Variant.h"
-
+#include <cstring> // for memcpy
 using std::string;
 using std::map;
 using std::vector;
