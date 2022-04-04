@@ -1,19 +1,19 @@
 BUILD = bin
 EMSCRIPTEN_BUILD = embin
-SERVER_DIR = ./backend/
+SERVER_DIR = ./server/
 WASM_OUT   = ./hosted/generated/
 USR_DIR    =/usr
 INCS_DIRS  =-I${USR_DIR}/include -Iinclude -I./include
 LIBS_DIRS  =-L${USR_DIR}/lib
-CPP_DEFS   =-D=HAVE_CONFIG_H
+CPP_DEFS=
+#CPP_DEFS   =-D=HAVE_CONFIG_H
 CPP_OPTS   = -O3 -Wno-pessimizing-move
 #-Wall
 LIBS       = -levent -levent_core
 
 
 SRC		   = ${SERVER_DIR}source/WebServer.cpp \
-			${SERVER_DIR}source/TableServer.cpp \
-			${SERVER_DIR}source/SyncServer.cpp
+			${SERVER_DIR}source/TableServer.cpp
 SRC_INC	   = -I${SERVER_DIR}include
 
 API_DIR    =./wasm/
@@ -25,20 +25,21 @@ EXPORTED_FUNCTIONS =[\
 	'_rayTrace', \
 	'_scan', \
 	'_nextAnimation', \
-	'_testAllocate', \
 	'_malloc', \
+	'_getTableNetworkRequest', \
+	'_distributeTableNetworkData', \
 	'_free']
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp
 API_SRC    =${API_DIR}source/Variant.cpp \
-        	${API_DIR}source/GLTF.cpp
+        	${API_DIR}source/GLTF.cpp \
+			${API_DIR}source/TableReader.cpp
 
 default: all
 
-all: wasm
-#server: ${SERVER_DIR}source/Main.cpp
-#	g++ -pthread -std=c++17 ${CPP_OPTS} ${CPP_DEFS} -o Main.exe -I${API_DIR} ${API_INC} ${SRC_INC} ${INCS_DIRS} ${SERVER_DIR}source/Main.cpp ${API_SRC} ${SRC} ${LIBS_DIRS} ${LIBS} 
-#mv ${BUILD}/bin/server backend/Main.exe
+all: server wasm
+server: ${SERVER_DIR}source/Main.cpp
+	g++ -pthread -std=c++17 ${CPP_OPTS} ${CPP_DEFS} -o Main.exe -I${API_DIR} ${API_INC} ${SRC_INC} ${INCS_DIRS} ${SERVER_DIR}source/Main.cpp ${API_SRC} ${SRC} ${LIBS_DIRS} ${LIBS} 
 wasm: ${API_DIR}source/api.cpp
 	emcc -std=c++17 -g -s EXPORT_NAME="initializeCPPAPI" -s MODULARIZE=1 -s ALLOW_MEMORY_GROWTH=1 -s MAXIMUM_MEMORY=4GB -O3 -s ASSERTIONS=1 ${API_MAIN} ${API_SRC} --post-js ${API_DIR}source/api_post.js -o ${WASM_OUT}api.js ${API_INC} -s "EXPORTED_FUNCTIONS=${EXPORTED_FUNCTIONS}" -s "EXPORTED_RUNTIME_METHODS=${EXTRA_EXPORTED_RUNTIME_METHODS}"
 clean:
