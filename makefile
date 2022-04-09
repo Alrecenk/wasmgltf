@@ -33,7 +33,8 @@ EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp
 API_SRC    =${API_DIR}source/Variant.cpp \
         	${API_DIR}source/GLTF.cpp \
-			${API_DIR}source/TableReader.cpp
+			${API_DIR}source/TableReader.cpp \
+			${API_DIR}source/OptimizationProblem.cpp
 
 default: all
 
