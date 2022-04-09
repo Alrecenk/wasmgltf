@@ -78,6 +78,7 @@ void TableReader::receiveTableData(const map<string, Variant> &data) {
         if(TableReader::cache_.find(key) == TableReader::cache_.end()){
             // deserialize the data when received
             loading_key_ = key;
+            //TODO intiialize element from value here that may request more keys to track dependencies
             loading_key_ = "";
             TableReader::cache_.emplace(key, value); // cache the data
             if(dep_on_.find(key) == dep_on_.end()){ // did not request any dependencies
