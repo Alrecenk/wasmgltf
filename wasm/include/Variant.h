@@ -30,8 +30,8 @@ class Variant {
         BYTE_OBJECT = 15
     };
     //TODO make const and use initializer lists on constructors or make private and provide accessors that give copies?
-    Type type_; // Type of object pointed to by ptr
-    byte* ptr; // Pointer to data
+    Type type_ = NULL_VARIANT; // Type of object pointed to by ptr
+    byte* ptr = nullptr; // Pointer to data
 
 
     std::vector<Variant> cached_array = std::vector<Variant>();

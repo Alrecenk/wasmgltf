@@ -268,7 +268,7 @@ Variant::Variant(Variant &&source) noexcept {
 // Variants own their pointers and free them when deallocated
 Variant::~Variant() {
     if(ptr != nullptr && type_ == NULL_VARIANT){
-        printf ("freeing null variant with pointer!?\n");
+        printf ("Freeing null variant with a pointer! Serialized data is corrupted. \n");
     }
     free(ptr);
 }
@@ -563,7 +563,11 @@ Variant  Variant::operator [](int i){
         if(cached_array.size() == 0){
             cached_array = getVariantArray();
         }
-        return cached_array[i];
+        if( i < cached_array.size()){
+            return cached_array[i];
+        }else{
+            return Variant();
+        }
         //return getVariantArray()[i];
     }else if(type_ == INT_OBJECT){
         return getIntObject()[i];
@@ -589,8 +593,11 @@ Variant  Variant::operator [](std::string i){
         if(cached_object.size() == 0){
             cached_object = getObject();
         }
-        return cached_object[i];
-        //return getObject()[i];
+        if(cached_object.find(i) != cached_object.end()){
+            return cached_object[i];
+        }else{
+            return Variant();
+        }
     }else{
         return Variant();
     }
