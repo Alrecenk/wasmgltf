@@ -21,6 +21,8 @@ class Renderer{
     yOrbitSpeed=0.007;
     rotate_speed=0.01;
 
+    axis_total = 0 ;
+
     
     // Performs the set-up for openGL canvas and shaders on construction
     constructor(webgl_canvas_id, ui_canvas_id , fragment_shader_id, vertex_shader_id, space_underneath_app){
@@ -510,6 +512,7 @@ class Renderer{
         console.log("XR session ended.");
     }
 
+
       // Called every time the XRSession requests that a new frame be drawn.
     onXRFrame(time, frame) {
 
@@ -558,18 +561,20 @@ class Renderer{
                 mat4.identity(renderer.model_pose);
                 mat4.translate(renderer.model_pose, renderer.model_pose,[0,0,-0.5]);
             }
-            
+            console.log(renderer.axis_total);
             let any_grab = false;
-            
             for (let inputSource of session.inputSources) {
                 let targetRayPose = frame.getPose(inputSource.targetRaySpace, renderer.xr_ref_space);
                 if(targetRayPose && inputSource.gripSpace){
-                    //console.log(inputSource);
                     let grabbing = false; 
                     if(inputSource.gamepad){
                         for(let button of inputSource.gamepad.buttons){
                             grabbing = grabbing || button.pressed;
                             //console.log(button);
+                        }
+                        
+                        for(let axis of inputSource.gamepad.axes){
+                            renderer.axis_total += axis ;
                         }
                     }
                     any_grab = any_grab || grabbing ;
@@ -582,6 +587,7 @@ class Renderer{
                         renderer.grab_pose.set(grip_pose);
                         renderer.grab_model_pose = mat4.create();
                         renderer.grab_model_pose.set(renderer.model_pose) ;
+                        renderer.grab_axis_total = renderer.axis_total ;
                         //console.log("grabbed:");
                         //console.log(renderer.grab_pose);
                     }
@@ -589,10 +595,25 @@ class Renderer{
                     if(grabbing){
                         //console.log("gripping:");
                         //console.log(grip_pose);
+
+
                         let MP = mat4.create();
-                        mat4.invert(MP, renderer.grab_pose); // TODO cache at grab time
+
+                        
+
+                        let inv = mat4.create();
+                        mat4.invert(inv, renderer.grab_pose); // TODO cache at grab time
+
+                        mat4.multiply(MP,inv, MP);
+
                         mat4.multiply(MP,grip_pose, MP);
+
+                        let scale = Math.pow(1.04, renderer.axis_total - renderer.grab_axis_total);
+                        mat4.scale(MP, MP,[scale,scale,scale]);
+                        
+                        
                         mat4.multiply(renderer.model_pose, MP, renderer.grab_model_pose);
+
                         //console.log(renderer.model_pose);
                         break ; // don't check next controllers
                     }
@@ -604,6 +625,8 @@ class Renderer{
                 renderer.grab_pose = null;
                 renderer.grab_model_pose = null;
             }
+
+            
 
             // undo the model transformation for the light point so it doesn't move with the model
             let lp = vec4.fromValues(renderer.light_point[0], renderer.light_point[1], renderer.light_point[2], 1);
