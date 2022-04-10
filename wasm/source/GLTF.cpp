@@ -383,7 +383,7 @@ void GLTF::setModel(const byte* data, int data_length){
 
             string header = string((char *) (data + 20), JSON_length);
             json = Variant::parseJSON(header);
-            //json.printFormatted();
+            json.printFormatted();
             int bin_chunk_start = 20 + JSON_length ;
             
             if(bin_chunk_start %4 != 0){
@@ -758,14 +758,12 @@ void GLTF::addMaterial(int material_id, Variant& json, const Variant& bin){
 
         if(m_json["pbrMetallicRoughness"]["baseColorTexture"]["index"].defined()){
             //printf("Got base color texture index for %d!\n", material_id);
-            mat.texture = true;
             mat.image = m_json["pbrMetallicRoughness"]["baseColorTexture"]["index"].getInt();
-            addImage(mat.image, json, bin);
+            mat.texture = addImage(mat.image, json, bin);
         }else if(m_json["pbrMetallicRoughness"]["extensions"]["KHR_materials_pbrSpecularGlossiness"]["diffuseTexture"]["index"].defined()){
             //printf("Got diffuse color texture index for %d!\n", material_id);
-            mat.texture = true;
             mat.image = m_json["pbrMetallicRoughness"]["extensions"]["KHR_materials_pbrSpecularGlossiness"]["diffuseTexture"]["index"].getInt();
-            addImage(mat.image, json, bin);
+            mat.texture = addImage(mat.image, json, bin);
         }else{
             //printf("No texture index for %d!\n", material_id);
             mat.texture = false;
@@ -776,13 +774,14 @@ void GLTF::addMaterial(int material_id, Variant& json, const Variant& bin){
     }
 }
 
-void GLTF::addImage(int image_id, Variant& json, const Variant& bin){
+bool GLTF::addImage(int image_id, Variant& json, const Variant& bin){
     //printf("Adding image %d!\n", image_id);
     if(this->images.find(image_id) == this->images.end()){
         Image& img = this->images[image_id] ;
         Variant i_json = json["images"][image_id];
         if(!i_json.defined()){
             printf("Material referencing image not found!\n");
+            return false;
         }
         //i_json.printFormatted();
         if(i_json["name"].defined()){
@@ -791,7 +790,7 @@ void GLTF::addImage(int image_id, Variant& json, const Variant& bin){
         }
         if(!json["bufferViews"][i_json["bufferView"]].defined()){
             printf("No buffer view on image, external resources not supported, aborting texture load.\n");
-            return ;
+            return false;
         }
 
         auto view = json["bufferViews"][i_json["bufferView"]];
@@ -805,7 +804,9 @@ void GLTF::addImage(int image_id, Variant& json, const Variant& bin){
         img.data = Variant(pixels,img.width*img.height*img.channels);
         free(pixels);
         printf("Loaded texture: %ix%ix%i = %d \n", img.width, img.height, img.channels, byteLength);
+        return true ;
     }
+    return false;
 }
 
 void GLTF::addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
@@ -849,6 +850,7 @@ void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangl
             new_transform *= glm::mat4_cast(qrot);
         }
         Variant sv = node["scale"];
+        
         if(sv.defined()){
             vec3 s = vec3(sv[0].getNumberAsFloat(), sv[1].getNumberAsFloat(), sv[2].getNumberAsFloat());
             node_struct.scale = s;

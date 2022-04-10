@@ -153,7 +153,7 @@ class GLTF{
 
         void addMaterial(int material_id, Variant& json, const Variant& bin);
 
-        void addImage(int image_id, Variant& json, const Variant& bin);
+        bool addImage(int image_id, Variant& json, const Variant& bin);
 
         void addAnimation(Variant& animation, Variant& json, const Variant& bin);
 
