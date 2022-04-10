@@ -311,6 +311,7 @@ class Renderer{
             this.buffers[id].normal = this.gl.createBuffer();
             this.buffers[id].tex_coord = this.gl.createBuffer();
             this.buffers[id].texture_id = -1;
+            this.buffers[id].double_sided = 0 ;
             this.buffers[id].joints = this.gl.createBuffer();
             this.buffers[id].weights= this.gl.createBuffer();
         }
@@ -366,6 +367,7 @@ class Renderer{
             //console.log("Javascript preparebuffer got material:\n");
             let mat = buffer_data.material ;
             //console.log(mat);
+            this.buffers[id].double_sided = (mat.double_sided == 1) ;
             if(mat.has_texture == 1){
                 //console.log("got texture image!");
                 this.buffers[id].texture = this.gl.createTexture();
@@ -398,7 +400,6 @@ class Renderer{
                 this.gl.uniform1i(this.shaderProgram.texture, this.buffers[id].texture_id );
                 
             }
-
         }
 
         if(buffer_data.bones){
@@ -453,6 +454,12 @@ class Renderer{
             }
 
             this.gl.uniform1f(this.shaderProgram.alpha_cutoff, 0.5 );
+
+            if(buffer.double_sided){
+                this.gl.disable(renderer.gl.CULL_FACE);
+            }else{
+                this.gl.enable(renderer.gl.CULL_FACE);
+            }
 
             this.gl.drawArrays(this.gl.TRIANGLES, 0, position_buffer.numItems);
         }
