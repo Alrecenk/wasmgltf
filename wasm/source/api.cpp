@@ -173,6 +173,8 @@ byte* scan(byte* ptr){
     auto obj = Variant::deserializeObject(ptr);
     vec3 p = obj["p"].getVec3() ;
     vec3 v = obj["v"].getVec3();
+
+    model_global.applyTransforms(); // Get current animated coordinates on CPU
     float t = model_global.rayTrace(p, v);
     map<string, Variant> ret_map;
     ret_map["t"] = Variant(t);

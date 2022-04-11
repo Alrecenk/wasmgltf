@@ -1038,40 +1038,31 @@ vec3 GLTF::getNormal(Triangle t){
 float EPSILON = 0.00001;
 float GLTF::trace(Triangle tri, const vec3 &p, const vec3 &v){
     vector<Vertex>& x = this->vertices ;
-    //TODO use the vector library
-    vec3 AB = {x[tri.B].position.x-x[tri.A].position.x,x[tri.B].position.y-x[tri.A].position.y,x[tri.B].position.z-x[tri.A].position.z};
-    vec3 AC = {x[tri.C].position.x-x[tri.A].position.x,x[tri.C].position.y-x[tri.A].position.y,x[tri.C].position.z-x[tri.A].position.z};
-    // h = v x AC
-    vec3 h = {v.y*AC.z - v.z*AC.y,
-              v.z*AC.x - v.x*AC.z,
-              v.x*AC.y - v.y*AC.x};
-    // a = AB . h
-    float a = AB.x*h.x + AB.y*h.y + AB.z*h.z;
-	if (a < EPSILON)
-      return -1;
-	float f = 1.0 / a;
-    // s = p - A
-    vec3 s = {p.x-x[tri.A].position.x,p.y-x[tri.A].position.y,p.z-x[tri.A].position.z};
-    // u = s.h * f
-    float u = (s.x*h.x+s.y*h.y+s.z*h.z) * f;
-	if (u < 0 || u > 1)
-      return -1;
-	// q = s x AB
-    vec3 q = {s.y*AB.z - s.z*AB.y,
-              s.z*AB.x - s.x*AB.z,
-              s.x*AB.y - s.y*AB.x};
-    // w = v.q * f
-    float w = (v.x*q.x+v.y*q.y+v.z*q.z) * f;
-	if (w < 0 || u + w > 1)
-      return -1;
-    // t = AC.q * f
-    float t = (AC.x*q.x+AC.y*q.y+AC.z*q.z) * f;
-    if( t > EPSILON){
-      return t;
-    }else{
-      return -1;
+    vec3& A = x[tri.A].transformed_position ;
+    vec3 AB = x[tri.B].transformed_position - A ;
+    vec3 AC = x[tri.C].transformed_position - A ;
+    vec3 h = glm::cross(v, AC);
+    float a = glm::dot(AB, h);
+	if (a < EPSILON){
+        return -1;
     }
-
+	float f = 1.0 / a;
+    vec3 s = p - A ;
+    float u = glm::dot(s, h) * f ;
+	if (u < 0 || u > 1){
+        return -1;
+    }
+    vec3 q = glm::cross(s, AB);
+    float w = glm::dot(v, q) * f ;
+	if (w < 0 || u + w > 1){
+        return -1;
+    }
+    float t = glm::dot(AC, q) * f ;
+    if( t > EPSILON){
+        return t;
+    }else{
+        return -1;
+    }
 }
 
 // Given a ray in model space (p + v*t) return the t value of the nearest collision
