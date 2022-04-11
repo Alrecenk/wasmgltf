@@ -33,6 +33,7 @@ body {
 <script type="text/javascript" src="generated/api.js"></script>
 <script type="text/javascript" src="Serializer.js"></script>
 <script type="text/javascript" src="ScanMode.js"></script>
+<script type="text/javascript" src="PoseMode.js"></script>
 
 <script id="shader-fs" type="x-shader/x-fragment">#version 300 es
     // A simple fragment shader with a single point light
@@ -337,6 +338,7 @@ function switchExecutionMode(next_mode){
 function initializeModes(){
     tools.modes = {} ;
     tools.modes.scan_mode = new ScanMode(tools);
+    tools.modes.pose_mode = new PoseMode(tools);
     switchExecutionMode(tools.modes.scan_mode) ;
 }
 
@@ -346,6 +348,9 @@ function setMainMenuButtons(){
     buttons["enter_vr"] = new InterfaceButton(5, 10, 200, 40, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
     buttons["next_animation"] = new InterfaceButton(5, 55, 200, 40, "Next Animation", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.API.call("nextAnimation");});
     
+    buttons["scan_mode"] = new InterfaceButton(5, 100, 200, 40, "Scan Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.scan_mode) ;});
+    buttons["pose_mode"] = new InterfaceButton(5, 100, 200, 40, "Pose Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.pose_mode) ;});
+
     tools.buttons = buttons ;
 }
 

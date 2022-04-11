@@ -1,6 +1,7 @@
 #include "OptimizationProblem.h"
 #include <math.h>
 #include <limits>
+#include <stdio.h>
 
 using std::vector ;
 
@@ -177,4 +178,29 @@ std::vector<double> OptimizationProblem::scale(std::vector<double> a, double s){
 
 double OptimizationProblem::norm(std::vector<double> a){
     return sqrt(dot(a,a));
+}
+
+
+OptimizationProblem::~OptimizationProblem(){}
+
+// Return the current x for this object
+std::vector<double> OptimizationProblem::getX(){
+    printf("Called optimization get, but it wasn't defined for this object!\n");
+    return std::vector<double>();
+}
+
+// Set this object to a given x
+void OptimizationProblem::setX(std::vector<double> x){
+    printf("Called optimization set,but it wasn't defined for this object!\n");
+}
+
+// Returns the error to be minimized for the given input
+double OptimizationProblem::error(std::vector<double> x){
+    printf("Called optimization error,but it wasn't defined for this object!\n");
+    return 0;
+}
+
+// Returns the gradient of error about a given input
+std::vector<double> OptimizationProblem::gradient(std::vector<double> x){
+    return numericalGradient(x, 0.0001);
 }
