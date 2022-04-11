@@ -1,5 +1,6 @@
 #include "GLTF.h"
 #include "Variant.h"
+#include "OptimizationProblem.h"
 
 #include <math.h>
 #include <map>
@@ -383,7 +384,7 @@ void GLTF::setModel(const byte* data, int data_length){
 
             string header = string((char *) (data + 20), JSON_length);
             json = Variant::parseJSON(header);
-            json.printFormatted();
+            //json.printFormatted();
             int bin_chunk_start = 20 + JSON_length ;
             
             if(bin_chunk_start %4 != 0){
@@ -1245,4 +1246,95 @@ glm::quat GLTF::slerp(glm::quat A, glm::quat B, float t){
         //printf("result: %f %f %f %f\n", result.w, result.x, result.y, result.z);
         return result ;
     }
+}
+
+
+// Create an IK pin to pull on the given bone local point
+void GLTF::createPin(std::string name, int bone, glm::vec3 local_point, float weight){
+    vec3 target = nodes[bone].transform * vec4(local_point,1); // start by pinning in place
+    pins[name] = {name, bone, local_point, target, weight, 0.2f};
+}
+
+// Set the target for a given pin
+void GLTF::setPinTarget(std::string name, glm::vec3 target){
+    pins[name].target = target ;
+}
+
+// delete pin
+void GLTF::deletePint(std::string name){
+    pins.erase(name);
+}
+
+// run inverse kinematics on model to bones to attemp to satisfy pin constraints
+void GLTF::applyPins(){
+    vector<double> x0 = getX() ;
+/*
+    printf("Starting x:\n");
+    for(const auto c : x0){
+         printf("%f, ", c);
+    }
+    printf("\n");
+*/
+    vector<double> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.0001, 3) ;
+
+/*
+    printf("Finalx:\n");
+    for(const auto c : xf){
+         printf("%f, ", c);
+    }
+    printf("\n");
+*/
+    setX(xf);
+    computeNodeMatrices();
+}
+
+// Return the current x for this object
+std::vector<double> GLTF::getX(){
+    vector<double> x ;
+    for(const auto& [node_id, node] : nodes){
+        if(node_id <= max_node_id){
+            x.push_back(node.rotation.w);
+            x.push_back(node.rotation.x);
+            x.push_back(node.rotation.y);
+            x.push_back(node.rotation.z);
+        }
+    }
+    return x ;
+}
+
+// Set this object to a given x
+void GLTF::setX(std::vector<double> x){
+    int j = 0 ;
+    for(auto& [node_id, node] : nodes){
+        if(node_id <= max_node_id){
+            node.rotation.w = x[j];
+            j++;
+            node.rotation.x = x[j];
+            j++;
+            node.rotation.y = x[j];
+            j++;
+            node.rotation.z = x[j];
+            j++;
+            node.rotation = glm::normalize(node.rotation);
+        }
+    }
+    computeNodeMatrices();
+}
+
+// Returns the error to be minimized for the given input
+double GLTF::error(std::vector<double> x){
+    vector<double> restore = getX();
+    setX(x);
+    double error = 0 ;
+    for(const auto& [name, pin] : pins){
+        vec3 actual = nodes[pin.bone].transform * vec4(pin.local_point,1);
+        vec3 diff = (actual - pin.target) ;
+        error += pin.weight * glm::dot(diff, diff);
+    }
+    return error ;
+}
+
+// Returns the gradient of error about a given input
+std::vector<double> GLTF::gradient(std::vector<double> x){
+    return numericalGradient(x,0.001);
 }

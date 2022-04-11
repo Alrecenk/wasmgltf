@@ -17,6 +17,7 @@ using std::string;
 using std::map;
 using std::pair;
 using glm::vec3;
+using glm::vec4;
 using glm::mat4;
 
 // Outermost API holds a global reference to the core data model
@@ -241,6 +242,66 @@ byte* getTableNetworkRequest(byte* nothing) {
 byte* distributeTableNetworkData(byte* data_ptr) {
     map<string, Variant> data = Variant::deserializeObject(data_ptr);
     TableReader::receiveTableData(data);
+    return emptyReturn();
+}
+
+byte* createPin(byte* ptr) {
+    auto obj = Variant::deserializeObject(ptr);
+    vec3 p = obj["p"].getVec3() ;
+    vec3 v = obj["v"].getVec3();
+    string name = obj["name"].getString();
+
+    model_global.applyTransforms(); // Get current animated coordinates on CPU
+    float t = model_global.rayTrace(p, v);
+
+    if(model_global.last_traced_tri != -1){
+        GLTF::Triangle tri = model_global.triangles[model_global.last_traced_tri];        
+        GLTF::Vertex& vert = model_global.vertices[tri.A];
+        glm::ivec4 joints = vert.joints;
+        float max_w = -1.0f ;
+        int bone = -1;
+        for(int k=0;k<4;k++){
+            float w = vert.weights[k] ;
+            if(w > max_w){
+                max_w = w ;
+                bone = vert.joints[k] ;
+            }
+        }
+        //TODO make pin
+        //vec3 local = model_global.nodes[bone].inv_transform * vec4( p + v * t, 1.0f) ;
+
+        model_global.createPin(name, bone, vert.position, 1.0f);
+        printf("Pin '%s' created for %s.\n" , name.c_str(), model_global.nodes[bone].name.c_str());
+    }
+
+    return emptyReturn();
+
+}
+
+byte* setPinTarget(byte* ptr) {
+    auto obj = Variant::deserializeObject(ptr);
+    vec3 p = obj["p"].getVec3() ;
+    vec3 v = obj["v"].getVec3();
+    string name = obj["name"].getString();
+
+    GLTF::Pin& pin = model_global.pins[name] ;
+    vec3 current = model_global.nodes[pin.bone].transform * glm::vec4(pin.local_point,1) ;
+
+    // Pull toward the closest point on the mouse ray
+    vec3 target = p + v * (glm::dot(current-p, v) / glm::dot(v,v)) ;
+    printf("Pulling %s to (%f, %f, %f).\n", name.c_str(), target.x, target.y, target.z);
+    model_global.setPinTarget(name, target);
+
+    model_global.applyPins();
+
+    return emptyReturn();
+}
+
+byte* deletePin(byte* ptr) {
+    auto obj = Variant::deserializeObject(ptr);
+    string name = obj["name"].getString();
+
+    printf("Pin '%s' deleted.\n" , name.c_str());
     return emptyReturn();
 }
 

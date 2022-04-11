@@ -1,4 +1,4 @@
-class ScanMode extends ExecutionMode{
+class PoseMode extends ExecutionMode{
     /* Input trackers. */
 
     // Mouse position
@@ -77,10 +77,9 @@ class ScanMode extends ExecutionMode{
         }else{
 
             let ray = tools.renderer.getRay([this.mouse_down_x,this.mouse_down_y]);
-            tools.API.call("scan", ray, new Serializer()); 
-            
-            
-            
+            ray.name = "drag";
+            tools.API.call("createPin", ray, new Serializer()); 
+            this.dragging = true;
         }
     }
 
@@ -90,11 +89,9 @@ class ScanMode extends ExecutionMode{
 		if(this.mouse_down){
             if(this.dragging){
                 let ray = tools.renderer.getRay([this.mouse_x,this.mouse_y]);
-                let trace_data = tools.API.call("rayTrace", ray, new Serializer()); 
-                let t = trace_data.t ;
-                if(t > 0){
-                    
-                }
+                ray.name = "drag";
+                tools.API.call("setPinTarget", ray, new Serializer()); 
+
             }else if(this.rotating){
                this.tools.renderer.continueRotate(pointers[0]);
             }
@@ -106,7 +103,8 @@ class ScanMode extends ExecutionMode{
 			return ;
         }
         if(this.dragging){
-            
+            let params = {name:"drag"} ;
+            tools.API.call("deletePin", params, new Serializer()); 
         }
         this.mouse_down = false ;
         this.dragging = false;

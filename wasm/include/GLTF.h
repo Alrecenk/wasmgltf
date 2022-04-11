@@ -2,6 +2,7 @@
 #define _GLTF_H_ 1
 
 #include "Variant.h"
+#include "OptimizationProblem.h"
 #include <set>
 #include "glm/glm.hpp"
 #include "glm/gtx/transform.hpp"
@@ -11,7 +12,7 @@
 typedef Variant::Type Type;
 typedef unsigned int uint;
 
-class GLTF{
+class GLTF : public OptimizationProblem{
 
     public:
 
@@ -91,6 +92,15 @@ class GLTF{
             std::vector<AnimationChannel> channels;
         };
 
+        struct Pin{
+            std::string name = "";
+            int bone ;
+            glm::vec3 local_point;
+            glm::vec3 target;
+            float weight = 1.0f ;
+            float parent_multiplier = 0.2;
+        };
+
 
         Variant json;
         Variant bin;
@@ -101,13 +111,8 @@ class GLTF{
         glm::mat4 transform;
         std::vector<Animation> animations;
         
+        std::map<std::string, Pin> pins ; // for inverse kinematics
 
-
-        //int num_vertices;
-        //int num_triangles;
-        //std::vector<glm::vec3> vertices ; 
-        //std::vector<glm::vec3> colors; 
-       //std::vector<glm::vec3> normals;
 
         std::vector<Vertex> vertices ;
         std::vector<Triangle> triangles ; 
@@ -124,7 +129,7 @@ class GLTF{
         GLTF();
 
         //Destructor
-        ~GLTF();
+        ~GLTF() override;
         
         
         Variant getChangedBuffer(int material);
@@ -187,6 +192,30 @@ class GLTF{
         // Does not change transforms unaffected by snimation, does not apply transforms to vertices
         void animate(Animation& animation, float time);
 
+        // Create an IK pin to pull on the given bone local point
+        void createPin(std::string name, int bone, glm::vec3 local_point, float weight);
+
+        // Set the target for a given pin
+        void setPinTarget(std::string name, glm::vec3 target);
+
+        // delete pin
+        void deletePint(std::string name);
+
+        // run inverse kinematics on model to bones to attemp to satisfy pin constraints
+        void applyPins();
+
+        // Return the current x for this object
+        std::vector<double> getX() override;
+
+        // Set this object to a given x
+        void setX(std::vector<double> x) override;
+
+        // Returns the error to be minimized for the given input
+        double error(std::vector<double> x) override;
+
+        // Returns the gradient of error about a given input
+        std::vector<double> gradient(std::vector<double> x) override;
+
     private:
         // Performs the duplicate work for the various get vertex buffer functions
         Variant getFloatBuffer(std::vector<glm::vec3>& ptr, int material);
@@ -197,9 +226,9 @@ class GLTF{
         // returns the normal of a triangle
         glm::vec3 getNormal(Triangle t);
 
-        // Given a ray in model space (p + v*t) return the t value of the nearest collision
+        // Given a ray (p + v*t) return the t value of the nearest collision
         // with the given triangle
-        // return negative if no collision
+        // returns negative if no collision
         float trace(Triangle tri, const glm::vec3 &p, const glm::vec3 &v);
 
         
