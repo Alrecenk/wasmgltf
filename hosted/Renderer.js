@@ -608,7 +608,7 @@ class Renderer{
 
                         mat4.multiply(MP,grip_pose, MP);
 
-                        let scale = Math.pow(1.04, renderer.axis_total - renderer.grab_axis_total);
+                        let scale = Math.pow(1.05, (renderer.axis_total - renderer.grab_axis_total)*0.3);
                         mat4.scale(MP, MP,[scale,scale,scale]);
                         
                         

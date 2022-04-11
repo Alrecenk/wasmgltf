@@ -78,18 +78,9 @@ class ScanMode extends ExecutionMode{
 
             let ray = tools.renderer.getRay([this.mouse_down_x,this.mouse_down_y]);
             tools.API.call("scan", ray, new Serializer()); 
-            /*
-            let trace_data = tools.API.call("rayTrace", ray, new Serializer()); 
-            let t = trace_data.t ;
-            if(t > 0){
-                let params = {};
-                params.center = trace_data.x;
-                params.radius = tools.brush_size ; 
-                params.color = new Float32Array(tools.paint_color);
-                tools.API.call("paint", params, new Serializer())
-                this.dragging = true;
-            }
-            */
+            
+            
+            
         }
     }
 
