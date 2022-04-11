@@ -75,6 +75,7 @@ class GLTF : public OptimizationProblem{
 
             glm::mat4 inv_transform ; //transform from starting coordinates into bone space
             glm::mat4 transform ; // combines model position, inverse, and current node transform for vertex manipulation from base coordinates
+            float stiffness = 1.0 ; // How hard this node is to move with IK
         };
 
         enum Path {ROTATION, TRANSLATION, SCALE};
@@ -98,7 +99,6 @@ class GLTF : public OptimizationProblem{
             glm::vec3 local_point;
             glm::vec3 target;
             float weight = 1.0f ;
-            float parent_multiplier = 0.2;
         };
 
 
@@ -203,6 +203,10 @@ class GLTF : public OptimizationProblem{
 
         // run inverse kinematics on model to bones to attemp to satisfy pin constraints
         void applyPins();
+
+        void setStiffnessByDepth();
+
+        void setStiffnessByDepth(int node_id, float stiffness);
 
         // Return the current x for this object
         std::vector<double> getX() override;
