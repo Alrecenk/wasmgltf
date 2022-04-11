@@ -1014,6 +1014,7 @@ void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Trian
         if(v.z > this->max.z)this->max.z = v.z;
     }
     computeInvMatrices();
+    setStiffnessByDepth();
     this->model_changed = true;
     this->position_changed = true;
     this->bones_changed = true;
@@ -1118,6 +1119,20 @@ void GLTF::computeInvMatrices(){
         if(node_id <= max_node_id){ // TODO I don't know how garbage gets in here, but it does on repeated loads sometimes
             node.inv_transform = glm::inverse(node.transform) ;
         }
+    }
+}
+
+void GLTF::setStiffnessByDepth(){
+    for(int k=0;k<root_nodes.size();k++){
+        setStiffnessByDepth(root_nodes[k], 1);
+        nodes[root_nodes[k]].stiffness = 1000;
+    } 
+}
+void GLTF::setStiffnessByDepth(int node_id, float stiffness){
+    Node& node = nodes[node_id];
+    node.stiffness = stiffness;
+    for(int k=0;k<node.children.size();k++){
+        setStiffnessByDepth(node.children[k], stiffness*0.75);
     }
 }
 
@@ -1252,7 +1267,7 @@ glm::quat GLTF::slerp(glm::quat A, glm::quat B, float t){
 // Create an IK pin to pull on the given bone local point
 void GLTF::createPin(std::string name, int bone, glm::vec3 local_point, float weight){
     vec3 target = nodes[bone].transform * vec4(local_point,1); // start by pinning in place
-    pins[name] = {name, bone, local_point, target, weight, 0.2f};
+    pins[name] = {name, bone, local_point, target, weight};
 }
 
 // Set the target for a given pin
@@ -1275,7 +1290,7 @@ void GLTF::applyPins(){
     }
     printf("\n");
 */
-    vector<double> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.0001, 3) ;
+    vector<double> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.0001, 1) ;
 
 /*
     printf("Finalx:\n");
@@ -1293,10 +1308,10 @@ std::vector<double> GLTF::getX(){
     vector<double> x ;
     for(const auto& [node_id, node] : nodes){
         if(node_id <= max_node_id){
-            x.push_back(node.rotation.w);
-            x.push_back(node.rotation.x);
-            x.push_back(node.rotation.y);
-            x.push_back(node.rotation.z);
+            x.push_back(node.rotation.w * node.stiffness);
+            x.push_back(node.rotation.x * node.stiffness);
+            x.push_back(node.rotation.y * node.stiffness);
+            x.push_back(node.rotation.z * node.stiffness);
         }
     }
     return x ;
@@ -1307,13 +1322,13 @@ void GLTF::setX(std::vector<double> x){
     int j = 0 ;
     for(auto& [node_id, node] : nodes){
         if(node_id <= max_node_id){
-            node.rotation.w = x[j];
+            node.rotation.w = x[j] / node.stiffness;
             j++;
-            node.rotation.x = x[j];
+            node.rotation.x = x[j] / node.stiffness;
             j++;
-            node.rotation.y = x[j];
+            node.rotation.y = x[j] / node.stiffness;
             j++;
-            node.rotation.z = x[j];
+            node.rotation.z = x[j] / node.stiffness;
             j++;
             node.rotation = glm::normalize(node.rotation);
         }

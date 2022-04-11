@@ -13,13 +13,12 @@ https://github.com/Alrecenk/StructureFromMotion/blob/master/src/Utility.java
 //Returns the gradient calculated numerically using the error function
 std::vector<double> OptimizationProblem::numericalGradient(std::vector<double> x, double epsilon){
     vector<double> gradient ;
+    double xerror = this->error(x);
     for(int k=0;k<x.size();k++){
         x[k] += epsilon;
         double xplus = this->error(x);
-        x[k] -= 2*epsilon;
-        double xminus = this->error(x);
-        x[k] += epsilon;
-        gradient.push_back((xplus-xminus)/(2*epsilon));
+        x[k] -= epsilon;
+        gradient.push_back((xplus-xerror)/(epsilon));
     }
     return gradient ;
 }
