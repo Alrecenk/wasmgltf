@@ -107,8 +107,7 @@ class GLTF : public OptimizationProblem{
         Variant json;
         Variant bin;
         std::map<int,std::map<int,int>> joint_to_node ; // joint_to_node[skin_id][joint_index] -> node_id
-        std::map<int,Node> nodes ;
-        int max_node_id;
+        std::vector<Node> nodes ;
         std::vector<int> root_nodes ;
         glm::mat4 transform;
         std::vector<Animation> animations;

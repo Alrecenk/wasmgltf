@@ -336,7 +336,7 @@ Variant GLTF::getChangedBuffer(int selected_material){
 
 
     if(this->bones_changed){
-        int num_bones = max_node_id+1 ;
+        int num_bones = nodes.size() ;
         int shader_num_bones = 1024; // TODO avoid duplicate constant definition with bones texture
         Variant& bone_buffer = buffers["bones"];
         bone_buffer.type_ = Variant::FLOAT_ARRAY;
@@ -344,10 +344,9 @@ Variant GLTF::getChangedBuffer(int selected_material){
         *((int*)bone_buffer.ptr) = shader_num_bones * 16 ;// number of floats in array
         float* bone_buffer_array =  (float*)(bone_buffer.ptr+4) ; // pointer to start of float array
 
-        for(const auto& [node_id, node] : nodes){
-            if(node_id <= max_node_id){ // TODO I don't know how garbage gets in here, but it does on repeated loads sometimes
-                memcpy(bone_buffer_array + (node_id*16), &(node.transform), 64);
-            }
+        for(int node_id=0; node_id<nodes.size(); node_id++){    
+            Node& node = nodes[node_id];  
+            memcpy(bone_buffer_array + (node_id*16), &(node.transform), 64);
         }
     }
 
@@ -363,8 +362,7 @@ void GLTF::setModel(const byte* data, int data_length){
     this->images.clear();
     this->animations.clear();
     joint_to_node = map<int,map<int,int>>();
-    nodes = map<int,Node>();
-    max_node_id = 0 ;
+    nodes = vector<Node>();
     root_nodes = vector<int>();
 
     //printf ("num bytes: %d \n", data_length);
@@ -410,6 +408,8 @@ void GLTF::setModel(const byte* data, int data_length){
                         }
                     }
                 }
+
+                nodes.resize(json["nodes"].getArrayLength());
 
                 int default_scene = 0 ;
                 if(json["scene"].defined()){
@@ -822,10 +822,8 @@ void GLTF::addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangl
 
 void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
                    int node_id, const glm::mat4& transform, Variant& json, const Variant& bin){
-    //printf("Adding node %d!\n", node_id);
     auto node = json["nodes"][node_id];
     Node& node_struct = nodes[node_id];
-    max_node_id = std::max(max_node_id, node_id);
     if(node["name"].defined()){
         node_struct.name = node["name"].getString();
     }
@@ -1108,20 +1106,18 @@ void GLTF::computeNodeMatrices(){
 
  // Computes base vertices for skinned vertices so they can later use apply node transforms
 void GLTF::computeInvMatrices(){
-    for(auto& [node_id, node] : nodes){
-        if(node_id <= max_node_id){ // TODO I don't know how garbage gets in here, but it does on repeated loads sometimes
-            node.mesh_to_bone = mat4(1) ;
-            node.bone_to_mesh = mat4(1) ;
-        }
+    for(int node_id=0; node_id<nodes.size(); node_id++){   
+        Node& node = nodes[node_id];
+        node.mesh_to_bone = mat4(1) ;
+        node.bone_to_mesh = mat4(1) ;
     }
     for(int k=0;k<root_nodes.size();k++){
         computeNodeMatrices(root_nodes[k], glm::mat4(1.0f));
     } 
-    for(auto& [node_id, node] : nodes){
-        if(node_id <= max_node_id){ // TODO I don't know how garbage gets in here, but it does on repeated loads sometimes
-            node.bone_to_mesh = node.transform ;
-            node.mesh_to_bone = glm::inverse(node.transform) ;
-        }
+    for(int node_id=0; node_id<nodes.size(); node_id++){   
+        Node& node = nodes[node_id];
+        node.bone_to_mesh = node.transform ;
+        node.mesh_to_bone = glm::inverse(node.transform) ;
     }
 }
 
@@ -1143,12 +1139,11 @@ void GLTF::setStiffnessByDepth(int node_id, float stiffness){
 void GLTF::applyTransforms(){
 
     // need to flatten nodes into a vector since we're fetching them in the vertex loop
-    //printf("Max node id: %d\n",max_node_id);
-    vector<mat4> node_matrix(max_node_id+1) ;
-    for(const auto& [node_id, node] : nodes){
-        if(node_id <= max_node_id){ // TODO I don't know how garbage gets in here, but it does on repeated loads sometimes
-            node_matrix[node_id] = node.transform ;
-        }
+    //TODO is this still significant?
+    vector<mat4> node_matrix(nodes.size()) ;
+    for(int node_id=0; node_id<nodes.size(); node_id++){   
+        Node& node = nodes[node_id];
+        node_matrix[node_id] = node.transform ;
     }
     
     for(auto& v : vertices){
@@ -1181,12 +1176,11 @@ void GLTF::applyTransforms(){
 }
 
 void GLTF::setBasePose(){
-    for(auto& [node_id, node] : nodes){
-        if(node_id <= max_node_id){
-            node.translation = node.base_translation;
-            node.scale = node.base_scale;
-            node.rotation = node.base_rotation;
-        }
+    for(int node_id=0; node_id<nodes.size(); node_id++){   
+        Node& node = nodes[node_id];
+        node.translation = node.base_translation;
+        node.scale = node.base_scale;
+        node.rotation = node.base_rotation;
     }
 }
 
@@ -1275,7 +1269,7 @@ glm::vec3 GLTF::applyRotation(glm::vec3 x, glm::quat rot){
 // Create an IK pin to pull on the given bone local point
 void GLTF::createPin(std::string name, int bone, glm::vec3 local_point, float weight){
     vec3 target = nodes[bone].transform * ( nodes[bone].bone_to_mesh * vec4(local_point,1)); // start by pinning in place
-    printf("target: %f, %f, %f\n", target.x, target.y, target.z);
+    //printf("target: %f, %f, %f\n", target.x, target.y, target.z);
     pins[name] = {name, bone, local_point, target, weight};
 }
 
@@ -1315,13 +1309,12 @@ void GLTF::applyPins(){
 // Return the current x for this object
 std::vector<double> GLTF::getX(){
     vector<double> x ;
-    for(const auto& [node_id, node] : nodes){
-        if(node_id <= max_node_id){
-            x.push_back(node.rotation.w * node.stiffness);
-            x.push_back(node.rotation.x * node.stiffness);
-            x.push_back(node.rotation.y * node.stiffness);
-            x.push_back(node.rotation.z * node.stiffness);
-        }
+    for(int node_id=0; node_id<nodes.size(); node_id++){   
+        Node& node = nodes[node_id];
+        x.push_back(node.rotation.w * node.stiffness);
+        x.push_back(node.rotation.x * node.stiffness);
+        x.push_back(node.rotation.y * node.stiffness);
+        x.push_back(node.rotation.z * node.stiffness);
     }
     return x ;
 }
@@ -1329,25 +1322,24 @@ std::vector<double> GLTF::getX(){
 // Set this object to a given x
 void GLTF::setX(std::vector<double> x){
     int j = 0 ;
-    for(auto& [node_id, node] : nodes){
-        if(node_id <= max_node_id){
-            node.rotation.w = x[j] / node.stiffness;
-            j++;
-            node.rotation.x = x[j] / node.stiffness;
-            j++;
-            node.rotation.y = x[j] / node.stiffness;
-            j++;
-            node.rotation.z = x[j] / node.stiffness;
-            j++;
-            node.rotation = glm::normalize(node.rotation);
-        }
+    for(int node_id=0; node_id<nodes.size(); node_id++){   
+        Node& node = nodes[node_id];
+        node.rotation.w = x[j] / node.stiffness;
+        j++;
+        node.rotation.x = x[j] / node.stiffness;
+        j++;
+        node.rotation.y = x[j] / node.stiffness;
+        j++;
+        node.rotation.z = x[j] / node.stiffness;
+        j++;
+        node.rotation = glm::normalize(node.rotation);
     }
     //computeNodeMatrices();
 }
 
 // Returns the error to be minimized for the given input
 double GLTF::error(std::vector<double> x){
-    vector<double> restore = getX();
+    //vector<double> restore = getX();
     setX(x);
     double error = 0 ;
     for(const auto& [name, pin] : pins){
