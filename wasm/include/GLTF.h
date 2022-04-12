@@ -63,6 +63,7 @@ class GLTF : public OptimizationProblem{
 
         struct Node{
             std::string name="" ;
+            int parent = -1;
             std::vector<int> children ;
             // Local transform is in components
             glm::quat rotation = {1.0f, 0.0f, 0.0f, 0.0f};
@@ -73,7 +74,8 @@ class GLTF : public OptimizationProblem{
             glm::vec3 base_scale = {1.0f,1.0f,1.0f};
             glm::vec3 base_translation = {0.0f, 0.0f, 0.0f};
 
-            glm::mat4 inv_transform ; //transform from starting coordinates into bone space
+            glm::mat4 mesh_to_bone ; //transform from starting coordinates into bone space
+            glm::mat4 bone_to_mesh ;
             glm::mat4 transform ; // combines model position, inverse, and current node transform for vertex manipulation from base coordinates
             float stiffness = 1.0 ; // How hard this node is to move with IK
         };
@@ -112,7 +114,6 @@ class GLTF : public OptimizationProblem{
         std::vector<Animation> animations;
         
         std::map<std::string, Pin> pins ; // for inverse kinematics
-
 
         std::vector<Vertex> vertices ;
         std::vector<Triangle> triangles ; 
@@ -178,6 +179,8 @@ class GLTF : public OptimizationProblem{
 
         static glm::quat slerp(glm::quat A, glm::quat B, float t);
 
+        static glm::vec3 applyRotation(glm::vec3 x, glm::quat rot);
+
         // hashes a vertex to allow duplicates to be detected
         int hashVertex(glm::vec3 v);
 
@@ -199,7 +202,7 @@ class GLTF : public OptimizationProblem{
         void setPinTarget(std::string name, glm::vec3 target);
 
         // delete pin
-        void deletePint(std::string name);
+        void deletePin(std::string name);
 
         // run inverse kinematics on model to bones to attemp to satisfy pin constraints
         void applyPins();
