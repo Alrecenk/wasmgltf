@@ -866,11 +866,12 @@ void GLTF::addNode(std::vector<Vertex>& vertices, std::vector<Triangle>& triangl
         addMesh(vertices, triangles, mesh_id, node_id, new_transform, json, bin);
     }
     if(node["children"].defined()){
-        auto nodes = node["children"];
-        for(int k=0;k<nodes.getArrayLength();k++){
-            int child_id = nodes[k].getInt();
+        auto children_ids = node["children"];
+        for(int k=0;k<children_ids.getArrayLength();k++){
+            int child_id = children_ids[k].getInt();
             node_struct.children.push_back(child_id);
             addNode(vertices, triangles, child_id, new_transform, json, bin);
+            nodes[child_id].parent = node_id ;
         }
     }
 }
@@ -1095,7 +1096,7 @@ void GLTF::computeNodeMatrices(int node_id, const glm::mat4& transform){
     for(int k=0;k<node.children.size();k++){
         computeNodeMatrices(node.children[k], node.transform);
     }
-    node.transform = node.transform * node.inv_transform;
+    node.transform = node.transform * node.mesh_to_bone;
 }
 
 void GLTF::computeNodeMatrices(){
@@ -1109,7 +1110,8 @@ void GLTF::computeNodeMatrices(){
 void GLTF::computeInvMatrices(){
     for(auto& [node_id, node] : nodes){
         if(node_id <= max_node_id){ // TODO I don't know how garbage gets in here, but it does on repeated loads sometimes
-            node.inv_transform = mat4(1) ;
+            node.mesh_to_bone = mat4(1) ;
+            node.bone_to_mesh = mat4(1) ;
         }
     }
     for(int k=0;k<root_nodes.size();k++){
@@ -1117,7 +1119,8 @@ void GLTF::computeInvMatrices(){
     } 
     for(auto& [node_id, node] : nodes){
         if(node_id <= max_node_id){ // TODO I don't know how garbage gets in here, but it does on repeated loads sometimes
-            node.inv_transform = glm::inverse(node.transform) ;
+            node.bone_to_mesh = node.transform ;
+            node.mesh_to_bone = glm::inverse(node.transform) ;
         }
     }
 }
@@ -1263,10 +1266,16 @@ glm::quat GLTF::slerp(glm::quat A, glm::quat B, float t){
     }
 }
 
+glm::vec3 GLTF::applyRotation(glm::vec3 x, glm::quat rot){
+    vec3 u = vec3(rot.x, rot.y, rot.z);
+    return u * (glm::dot(u,x) *2) + x * (2*rot.w*rot.w-1) + glm::cross(u,x) * (2*rot.w) ;
+}
+
 
 // Create an IK pin to pull on the given bone local point
 void GLTF::createPin(std::string name, int bone, glm::vec3 local_point, float weight){
-    vec3 target = nodes[bone].transform * vec4(local_point,1); // start by pinning in place
+    vec3 target = nodes[bone].transform * ( nodes[bone].bone_to_mesh * vec4(local_point,1)); // start by pinning in place
+    printf("target: %f, %f, %f\n", target.x, target.y, target.z);
     pins[name] = {name, bone, local_point, target, weight};
 }
 
@@ -1276,7 +1285,7 @@ void GLTF::setPinTarget(std::string name, glm::vec3 target){
 }
 
 // delete pin
-void GLTF::deletePint(std::string name){
+void GLTF::deletePin(std::string name){
     pins.erase(name);
 }
 
@@ -1333,7 +1342,7 @@ void GLTF::setX(std::vector<double> x){
             node.rotation = glm::normalize(node.rotation);
         }
     }
-    computeNodeMatrices();
+    //computeNodeMatrices();
 }
 
 // Returns the error to be minimized for the given input
@@ -1342,7 +1351,23 @@ double GLTF::error(std::vector<double> x){
     setX(x);
     double error = 0 ;
     for(const auto& [name, pin] : pins){
-        vec3 actual = nodes[pin.bone].transform * vec4(pin.local_point,1);
+
+        //vec3 actual_matrix = nodes[pin.bone].transform * ( nodes[pin.bone].bone_to_mesh * dvec4(pin.local_point,1));
+
+        vec3 actual = pin.local_point ;
+        int node_id = pin.bone;
+        while(node_id != -1){
+            Node& bone = nodes[node_id];
+            actual.x *= bone.scale.x;
+            actual.y *= bone.scale.y;
+            actual.z *= bone.scale.z;
+            actual = GLTF::applyRotation(actual, bone.rotation);
+            actual += bone.translation;
+            node_id = bone.parent;
+        }
+        actual = transform * vec4(actual,1.0) ; // overall model pose transform
+
+        //printf("error actual: %f, %f, %f\n", actual.x, actual.y, actual.z);
         vec3 diff = (actual - pin.target) ;
         error += pin.weight * glm::dot(diff, diff);
     }
