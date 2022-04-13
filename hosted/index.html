@@ -182,6 +182,8 @@ function canvasApp() {
 		document.addEventListener("touchend", touchHandler, true);
 		document.addEventListener("touchcancel", touchHandler, true);
 
+
+        //document.addEventListener('pointermove', pointerMove, true) ;
             
 		requestAnimationFrame(timeListener); // Timer at 60 hertz.
 	}
@@ -267,6 +269,8 @@ function canvasApp() {
 		pointerUp([]); // On mouse up there are no pointers down
 	}
 
+ 
+
 	function pointerDown(pointers) {
 		mouse_down_x = pointers[0].x;
         mouse_down_y = pointers[0].y;
@@ -306,6 +310,10 @@ function canvasApp() {
 	}
 
 	function pointerMove(pointers) {
+        if(pointers.x){ // not an array, must be a real pointer event
+            pointers.preventDefault()
+            pointers = [{x:pointers.x,y:pointers.y}];
+        }
         mouse_x = pointers[0].x;
 		mouse_y = pointers[0].y;
         if(current_mode!=null){
@@ -348,7 +356,7 @@ function setMainMenuButtons(){
     buttons["enter_vr"] = new InterfaceButton(5, 10, 200, 40, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
     buttons["next_animation"] = new InterfaceButton(5, 55, 200, 40, "Next Animation", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.API.call("nextAnimation");});
     
-    buttons["scan_mode"] = new InterfaceButton(5, 100, 200, 40, "Scan Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.scan_mode) ;});
+    buttons["scan_mode"] = new InterfaceButton(5, 100, 200, 40, "View Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.scan_mode) ;});
     buttons["pose_mode"] = new InterfaceButton(5, 145, 200, 40, "Pose Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.pose_mode) ;});
 
     tools.buttons = buttons ;
