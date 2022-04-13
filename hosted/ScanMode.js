@@ -71,7 +71,7 @@ class ScanMode extends ExecutionMode{
 		this.mouse_down = true ;
 		this.mouse_button = pointers[0].button ;
         
-        if(this.mouse_button == 0){
+        if(this.mouse_button != 2){
             this.rotating = true;
             this.tools.renderer.startRotate(this.camera_focus, pointers[0]);
         }else{
@@ -89,12 +89,14 @@ class ScanMode extends ExecutionMode{
 		this.mouse_y = pointers[0].y;
 		if(this.mouse_down){
             if(this.dragging){
+                /*
                 let ray = tools.renderer.getRay([this.mouse_x,this.mouse_y]);
                 let trace_data = tools.API.call("rayTrace", ray, new Serializer()); 
                 let t = trace_data.t ;
                 if(t > 0){
                     
                 }
+                */
             }else if(this.rotating){
                this.tools.renderer.continueRotate(pointers[0]);
             }
