@@ -1266,8 +1266,21 @@ glm::quat GLTF::slerp(glm::quat A, glm::quat B, float t){
 }
 
 glm::vec3 GLTF::applyRotation(glm::vec3 x, glm::quat rot){
+    /*
     vec3 u = vec3(rot.x, rot.y, rot.z);
     return u * (glm::dot(u,x) *2) + x * (2*rot.w*rot.w-1) + glm::cross(u,x) * (2*rot.w) ;
+    */
+    float rdotx2 = 2 * (rot.x * x.x + rot.y * x.y + rot.z * x.z) ;
+    float w2 = 2*rot.w ;
+    float w2wm1 = 2*rot.w*rot.w-1.0f ;
+    //vec3 cross = glm::cross(u,x) ;
+    vec3 cross  = {rot.y * x.z - rot.z * x.y, rot.z * x.x - rot.x * x.z, rot.x*x.y - rot.y*x.x};
+    float ox = rot.x * rdotx2 + x.x * w2wm1 + cross.x * w2;
+    float oy = rot.y * rdotx2 + x.y * w2wm1 + cross.y * w2;
+    float oz = rot.z * rdotx2 + x.z * w2wm1 + cross.z * w2;
+
+    return vec3(ox,oy,oz);
+
 }
 
 
@@ -1374,21 +1387,62 @@ double GLTF::error(std::vector<double> x){
 // Computes the gradient of a rotation's quaternion with respect to an error given gradient of x output to that error
 glm::vec4 GLTF::dedq(glm::vec3 x, glm::quat rot, glm::vec3 dedx){
 
+    //printf("dedq input x = %f,%f,%f  q = %f, %f, %f, %f   dedx = %f, %f, %f\n", x.x,x.y,x.z,rot.w,rot.x,rot.y,rot.z,dedx.x,dedx.y,dedx.z);
+    float epsilon = 0.001;
+    glm::vec4 gradient ;
+    vec3 xo = applyRotation(x,rot);
     
-    return vec4();
+    rot.x += epsilon ;
+    gradient.x = glm::dot(dedx, (applyRotation(x,rot) - xo)/epsilon );
+    rot.x -= epsilon;
+    
+    rot.y += epsilon ;
+    gradient.y = glm::dot(dedx, (applyRotation(x,rot) - xo)/epsilon );
+    rot.y -= epsilon;
+
+    rot.z += epsilon ;
+    gradient.z = glm::dot(dedx, (applyRotation(x,rot) - xo)/epsilon );
+    rot.z -= epsilon;
+
+    rot.w += epsilon ;
+    gradient.w = glm::dot(dedx, (applyRotation(x,rot) - xo)/epsilon );
+    rot.w -= epsilon;
+    
+    return gradient ;
 }
 
         // Computes the gradient of a rotation's input with respect to an error given gradient of x output to that error
 glm::vec3 GLTF::dedx(glm::vec3 x, glm::quat rot, glm::vec3 dedx){
-    return vec3();
+    //printf("dedx input x = %f,%f,%f  q = %f, %f, %f, %f   dedx = %f, %f, %f\n", x.x,x.y,x.z,rot.w,rot.x,rot.y,rot.z,dedx.x,dedx.y,dedx.z);
+    
+    float epsilon = 0.001;
+    glm::vec3 gradient ;
+    vec3 xo = applyRotation(x,rot);
+
+    x.x += epsilon ;
+    gradient.x = glm::dot(dedx, (applyRotation(x,rot) - xo)/epsilon );
+    x.x -= epsilon;
+    
+    x.y += epsilon ;
+    gradient.y = glm::dot(dedx, (applyRotation(x,rot) - xo)/epsilon );
+    x.y -= epsilon;
+
+    x.z += epsilon ;
+    gradient.z = glm::dot(dedx, (applyRotation(x,rot) - xo)/epsilon );
+    x.z -= epsilon;
+    
+    return gradient ;
 }
 
 // Returns the gradient of error about a given input
 std::vector<double> GLTF::gradient(std::vector<double> x){
-    std::vector<double> numerical = numericalGradient(x,0.001);
-    /*
+    //std::vector<double> numerical = numericalGradient(x,0.001);
+    
     std::vector<double> gradient ;
-    gradient.resize(x.size);
+    gradient.resize(x.size());
+    for(int k=0;k<x.size();k++){
+        gradient[k] = 0.0 ;
+    }
 
     setX(x);
     
@@ -1402,31 +1456,34 @@ std::vector<double> GLTF::gradient(std::vector<double> x){
         vector<vec3> xi;
         while(node_id != -1){
             bones.push_back(node_id);
-            xi.push_back(actual);
             Node& bone = nodes[node_id];
             actual.x *= bone.scale.x;
             actual.y *= bone.scale.y;
             actual.z *= bone.scale.z;
+            xi.push_back(actual);
             actual = GLTF::applyRotation(actual, bone.rotation);
             actual += bone.translation;
             node_id = bone.parent;
         }
         actual = transform * vec4(actual,1.0) ; // overall model pose transform
 
-        //printf("error actual: %f, %f, %f\n", actual.x, actual.y, actual.z);
+        //printf("point: %f, %f, %f\n", actual.x, actual.y, actual.z);
         vec3 diff = (actual - pin.target) ;
         error = pin.weight * glm::dot(diff, diff);
 
-        vec3 dedx = 2 * diff ;
+        vec3 dedx =  transform * vec4(diff,0.0) * 2.0f * pin.weight ;
+
+        //printf("Error: %f \n", error);
+        //printf("dedx root: %f, %f, %f\n", dedx.x, dedx.y, dedx.z);
         // back propogate gradient
         for(int bi = bones.size()-1; bi>= 0; bi--){
             Node& bone = nodes[bones[bi]];
-            // graadient of rotation of this bone
+            // gradient of rotation of this bone
             vec4 dedq = GLTF::dedq(xi[bi], bone.rotation, dedx) ;
-            gradient[bones[bi]*4] += dedq.w * bone.stiffness; 
-            gradient[bones[bi]*4+1] += dedq.x* bone.stiffness;
-            gradient[bones[bi]*4+2] += dedq.y* bone.stiffness;
-            gradient[bones[bi]*4+3] += dedq.z* bone.stiffness;
+            gradient[bones[bi]*4] += dedq.w/bone.stiffness ; 
+            gradient[bones[bi]*4+1] += dedq.x/bone.stiffness; // TODO stiffness
+            gradient[bones[bi]*4+2] += dedq.y/bone.stiffness;
+            gradient[bones[bi]*4+3] += dedq.z/bone.stiffness;
             // prepare dedex for next bone
             dedx = GLTF::dedx(xi[bi], bone.rotation, dedx) ;
             dedx.x *= bone.scale.x;
@@ -1436,6 +1493,15 @@ std::vector<double> GLTF::gradient(std::vector<double> x){
         }
         
     }
+    /*
+    printf("IK gradient:\n");
+    for(int k=0;k<gradient.size();k++){
+        if(abs(gradient[k]) > 0.0001 ||  abs(numerical[k]) > 0.0001){
+            printf("%d: %f = %f, ", k, gradient[k], numerical[k]);
+        }
+    }
+    printf("\n");
     */
-    return numerical ;
+    //return numerical ;
+    return gradient ;
 }
