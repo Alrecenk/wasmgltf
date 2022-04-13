@@ -381,7 +381,7 @@ void GLTF::setModel(const byte* data, int data_length){
 
             string header = string((char *) (data + 20), JSON_length);
             json = Variant::parseJSON(header);
-            json.printFormatted();
+            //json.printFormatted();
             int bin_chunk_start = 20 + JSON_length ;
             
             if(bin_chunk_start %4 != 0){
@@ -656,7 +656,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
     if(!json["materials"][material].defined()){
         printf("Failed to find material %d for primitive \n",  material);
     }
-    printf("Primitive material: %d\n", material);
+    //printf("Primitive material: %d\n", material);
     
     vec3 mat_color = vec3(1,1,1);
     
@@ -762,11 +762,13 @@ void GLTF::addMaterial(int material_id, Variant& json, const Variant& bin){
 
         if(m_json["pbrMetallicRoughness"]["baseColorTexture"]["index"].defined()){
             //printf("Got base color texture index for %d!\n", material_id);
-            mat.image = m_json["pbrMetallicRoughness"]["baseColorTexture"]["index"].getInt();
+            int texture_id = m_json["pbrMetallicRoughness"]["baseColorTexture"]["index"].getInt();
+            mat.image = json["textures"][texture_id]["source"].getInt();
             mat.texture = addImage(mat.image, json, bin);
         }else if(m_json["pbrMetallicRoughness"]["extensions"]["KHR_materials_pbrSpecularGlossiness"]["diffuseTexture"]["index"].defined()){
             //printf("Got diffuse color texture index for %d!\n", material_id);
-            mat.image = m_json["pbrMetallicRoughness"]["extensions"]["KHR_materials_pbrSpecularGlossiness"]["diffuseTexture"]["index"].getInt();
+            int texture_id = m_json["pbrMetallicRoughness"]["extensions"]["KHR_materials_pbrSpecularGlossiness"]["diffuseTexture"]["index"].getInt();
+            mat.image = json["textures"][texture_id]["source"].getInt();
             mat.texture = addImage(mat.image, json, bin);
         }else{
             //printf("No texture index for %d!\n", material_id);
@@ -784,7 +786,7 @@ bool GLTF::addImage(int image_id, Variant& json, const Variant& bin){
         Image& img = this->images[image_id] ;
         Variant i_json = json["images"][image_id];
         if(!i_json.defined()){
-            printf("Material referencing image not found!\n");
+            printf("Material referencing image not found ( %d)!\n", image_id);
             return false;
         }
         //i_json.printFormatted();
@@ -804,17 +806,13 @@ bool GLTF::addImage(int image_id, Variant& json, const Variant& bin){
         }
         int byteLength = view["byteLength"].getInt();
         byte* pixels = stbi_load_from_memory(bin.ptr + 4 + offset, byteLength, &img.width, &img.height, &img.channels, 0) ;
-        if (stbi_failure_reason()){
-            printf("Image load failed reason: %s\n", stbi_failure_reason());
-            return false;
-        }
         
         img.data = Variant(pixels,img.width*img.height*img.channels);
         free(pixels);
         printf("Loaded texture: %ix%ix%i = %d \n", img.width, img.height, img.channels, byteLength);
         return true ;
     }
-    return false;
+    return true;
 }
 
 void GLTF::addMesh(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
