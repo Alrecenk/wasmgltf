@@ -178,7 +178,14 @@ class GLTF : public OptimizationProblem{
 
         static glm::quat slerp(glm::quat A, glm::quat B, float t);
 
+        // Applies a quaternion rotation to x and returns the result
         static glm::vec3 applyRotation(glm::vec3 x, glm::quat rot);
+
+        // Computes the gradient of a rotation's quaternion with respect to an error given gradient of x output to that error
+        static glm::vec4 dedq(glm::vec3 x, glm::quat rot, glm::vec3 dedx);
+
+        // Computes the gradient of a rotation's input with respect to an error given gradient of x output to that error
+        static glm::vec3 dedx(glm::vec3 x, glm::quat rot, glm::vec3 dedx);
 
         // hashes a vertex to allow duplicates to be detected
         int hashVertex(glm::vec3 v);
