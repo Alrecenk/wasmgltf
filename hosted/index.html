@@ -349,7 +349,7 @@ function setMainMenuButtons(){
     buttons["next_animation"] = new InterfaceButton(5, 55, 200, 40, "Next Animation", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.API.call("nextAnimation");});
     
     buttons["scan_mode"] = new InterfaceButton(5, 100, 200, 40, "Scan Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.scan_mode) ;});
-    buttons["pose_mode"] = new InterfaceButton(5, 100, 200, 40, "Pose Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.pose_mode) ;});
+    buttons["pose_mode"] = new InterfaceButton(5, 145, 200, 40, "Pose Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.pose_mode) ;});
 
     tools.buttons = buttons ;
 }

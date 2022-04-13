@@ -212,7 +212,7 @@ This function detects what type came in and converts it to a 32 bit float */
 
 
     // returns the hash of a variant
-    int hash();
+    int hash() const;
 
     // return hash of a string
     static int hash(std::string s);

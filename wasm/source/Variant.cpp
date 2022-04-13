@@ -1024,11 +1024,11 @@ void Variant::printJSON(const std::string& json){
 
 
 // returns the hash of a variant
-int Variant::hash() {
+int Variant::hash() const {
     return Variant::murmur((uint8_t*) ptr, getSize(), 17);
 }
 
-int Variant::hash(string s) {
+int Variant::hash(string s){
     return Variant(s).hash();
 }
 

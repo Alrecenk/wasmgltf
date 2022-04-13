@@ -322,6 +322,7 @@ Variant GLTF::getChangedBuffer(int selected_material){
         mat_map["has_texture"] = Variant(mat.texture ? 1: 0);
         if(mat.texture){
             const Image& img = this->images[mat.image];
+            //printf("Mat image: %d for %d tris  hash: %d\n", mat.image, num_triangles, img.data.hash());
             mat_map["image_name"] = Variant(img.name);
             mat_map["image_width"] = Variant(img.width) ;
             mat_map["image_height"] = Variant(img.height) ;
@@ -330,8 +331,6 @@ Variant GLTF::getChangedBuffer(int selected_material){
         }
         
         buffers["material"] = Variant(mat_map);
-
-
     }
 
 
@@ -382,7 +381,7 @@ void GLTF::setModel(const byte* data, int data_length){
 
             string header = string((char *) (data + 20), JSON_length);
             json = Variant::parseJSON(header);
-            //json.printFormatted();
+            json.printFormatted();
             int bin_chunk_start = 20 + JSON_length ;
             
             if(bin_chunk_start %4 != 0){
@@ -657,8 +656,10 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
     if(!json["materials"][material].defined()){
         printf("Failed to find material %d for primitive \n",  material);
     }
+    printf("Primitive material: %d\n", material);
     
     vec3 mat_color = vec3(1,1,1);
+    
     Variant iv = json["materials"][material]["pbrMetallicRoughness"]["baseColorTexture"]["index"] ;
     //int image = -1;
     if(iv.defined()){
@@ -667,6 +668,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
         
         //printf("texture in primitive  %d x%d \n ", img.width, img.height);
     }else{
+        
         Variant ic = json["materials"][material]["pbrMetallicRoughness"]["extensions"]["KHR_materials_pbrSpecularGlossiness"]["diffuseFactor"];
         if(!ic.defined()){
             ic = json["materials"][material]["pbrMetallicRoughness"]["baseColorFactor"];
@@ -674,6 +676,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
         if(ic.defined()){
             mat_color = vec3(ic[0].getNumberAsFloat(), ic[1].getNumberAsFloat(), ic[2].getNumberAsFloat());
         }
+        
     }
 
     for(int k=0;k<num_vertices;k++){
@@ -786,8 +789,8 @@ bool GLTF::addImage(int image_id, Variant& json, const Variant& bin){
         }
         //i_json.printFormatted();
         if(i_json["name"].defined()){
-            //printf("Got name!\n");
             img.name = i_json["name"].getString();
+            //printf("Got image name! %s\n", img.name.c_str());
         }
         if(!json["bufferViews"][i_json["bufferView"]].defined()){
             printf("No buffer view on image, external resources not supported, aborting texture load.\n");
@@ -800,8 +803,12 @@ bool GLTF::addImage(int image_id, Variant& json, const Variant& bin){
             offset = view["byteOffset"].getInt();
         }
         int byteLength = view["byteLength"].getInt();
-
         byte* pixels = stbi_load_from_memory(bin.ptr + 4 + offset, byteLength, &img.width, &img.height, &img.channels, 0) ;
+        if (stbi_failure_reason()){
+            printf("Image load failed reason: %s\n", stbi_failure_reason());
+            return false;
+        }
+        
         img.data = Variant(pixels,img.width*img.height*img.channels);
         free(pixels);
         printf("Loaded texture: %ix%ix%i = %d \n", img.width, img.height, img.channels, byteLength);
@@ -1366,7 +1373,71 @@ double GLTF::error(std::vector<double> x){
     return error ;
 }
 
+// Computes the gradient of a rotation's quaternion with respect to an error given gradient of x output to that error
+glm::vec4 GLTF::dedq(glm::vec3 x, glm::quat rot, glm::vec3 dedx){
+
+    
+    return vec4();
+}
+
+        // Computes the gradient of a rotation's input with respect to an error given gradient of x output to that error
+glm::vec3 GLTF::dedx(glm::vec3 x, glm::quat rot, glm::vec3 dedx){
+    return vec3();
+}
+
 // Returns the gradient of error about a given input
 std::vector<double> GLTF::gradient(std::vector<double> x){
-    return numericalGradient(x,0.001);
+    std::vector<double> numerical = numericalGradient(x,0.001);
+    /*
+    std::vector<double> gradient ;
+    gradient.resize(x.size);
+
+    setX(x);
+    
+    for(const auto& [name, pin] : pins){
+        double error = 0 ;
+        
+        // Forward propogate error
+        vec3 actual = pin.local_point ;
+        int node_id = pin.bone;
+        vector<int> bones ;
+        vector<vec3> xi;
+        while(node_id != -1){
+            bones.push_back(node_id);
+            xi.push_back(actual);
+            Node& bone = nodes[node_id];
+            actual.x *= bone.scale.x;
+            actual.y *= bone.scale.y;
+            actual.z *= bone.scale.z;
+            actual = GLTF::applyRotation(actual, bone.rotation);
+            actual += bone.translation;
+            node_id = bone.parent;
+        }
+        actual = transform * vec4(actual,1.0) ; // overall model pose transform
+
+        //printf("error actual: %f, %f, %f\n", actual.x, actual.y, actual.z);
+        vec3 diff = (actual - pin.target) ;
+        error = pin.weight * glm::dot(diff, diff);
+
+        vec3 dedx = 2 * diff ;
+        // back propogate gradient
+        for(int bi = bones.size()-1; bi>= 0; bi--){
+            Node& bone = nodes[bones[bi]];
+            // graadient of rotation of this bone
+            vec4 dedq = GLTF::dedq(xi[bi], bone.rotation, dedx) ;
+            gradient[bones[bi]*4] += dedq.w * bone.stiffness; 
+            gradient[bones[bi]*4+1] += dedq.x* bone.stiffness;
+            gradient[bones[bi]*4+2] += dedq.y* bone.stiffness;
+            gradient[bones[bi]*4+3] += dedq.z* bone.stiffness;
+            // prepare dedex for next bone
+            dedx = GLTF::dedx(xi[bi], bone.rotation, dedx) ;
+            dedx.x *= bone.scale.x;
+            dedx.y *= bone.scale.y;
+            dedx.z *= bone.scale.z;
+
+        }
+        
+    }
+    */
+    return numerical ;
 }

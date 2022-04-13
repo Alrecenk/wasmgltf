@@ -371,24 +371,23 @@ class Renderer{
             //console.log(mat);
             this.buffers[id].double_sided = (mat.double_sided == 1) ;
             if(mat.has_texture == 1){
-                //console.log("got texture image!");
                 this.buffers[id].texture = this.gl.createTexture();
                 this.gl.bindTexture(this.gl.TEXTURE_2D, this.buffers[id].texture);
-                this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
-                this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+                this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.REPEAT);
+                this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.REPEAT);
                 this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
                 this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
 
-                
-                //console.log(mat.image_width +", " + mat.image_height +", " + mat.image_channels);
                 if(mat.image_channels == 3){
                     this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGB, 
                         mat.image_width, mat.image_height, 
-                        0, this.gl.RGB, this.gl.UNSIGNED_BYTE, new Uint8Array(mat.image_data));
+                        0, this.gl.RGB, this.gl.UNSIGNED_BYTE, mat.image_data);
                 }else if(mat.image_channels == 4){
                     this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, 
                         mat.image_width, mat.image_height, 
-                        0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, new Uint8Array(mat.image_data));
+                        0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, mat.image_data);
+                }else{
+                    console.log("Failed to load texture because of number of channels (" + mat.image_channels +")");
                 }
 
 
@@ -396,7 +395,6 @@ class Renderer{
                 this.buffers[id].texture_id = parseInt(id) +2; // TODO would conflict if more than one gltf at a time
 
                 //console.log("binding Texture id: " + this.buffers[id].texture_id + " \n");
-                //console.log(this.buffers[id].texture);
                 this.gl.activeTexture(this.gl.TEXTURE0 + this.buffers[id].texture_id );
                 this.gl.bindTexture(this.gl.TEXTURE_2D, this.buffers[id].texture );
                 this.gl.uniform1i(this.shaderProgram.texture, this.buffers[id].texture_id );
@@ -444,7 +442,7 @@ class Renderer{
             this.gl.vertexAttribPointer(this.shaderProgram.weightsAttribute, weights_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
 
             if(buffer.texture_id >= 0){
-                //console.log("Drawing texture for index " + (buffer.texture_id+2) +"\n");
+                //console.log("Drawing texture for index " + (buffer.texture_id) +"\n");
                 this.gl.activeTexture(this.gl.TEXTURE0 + buffer.texture_id );
                 this.gl.bindTexture(this.gl.TEXTURE_2D, buffer.texture );
                 this.gl.uniform1i(this.shaderProgram.texture, buffer.texture_id );

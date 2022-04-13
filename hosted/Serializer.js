@@ -449,7 +449,7 @@ class Serializer {
     deserializeByteArray(array_buffer, ptr) {
         let length = this.deserializeInt(array_buffer, ptr);
         this.last_deserialized_length = 4 + length;
-        return new Int8Array(array_buffer, ptr + 4, length);
+        return new Uint8Array(array_buffer, ptr + 4, length);
     }
 
     deserializeFloatArray(array_buffer, ptr) {

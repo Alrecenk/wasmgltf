@@ -202,7 +202,7 @@ byte* scan(byte* ptr){
             }
         }
 
-        //printf("Local Position: %f, %f, %f \n" , v.base_position.x, v.base_position.y, v.base_position.z);
+        printf("Texcoords: %f, %f\n" , v.tex_coord.x, v.tex_coord.y);
     }
     return emptyReturn();
 }
