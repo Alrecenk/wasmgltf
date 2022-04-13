@@ -11,8 +11,8 @@ https://github.com/Alrecenk/StructureFromMotion/blob/master/src/Utility.java
 
 
 //Returns the gradient calculated numerically using the error function
-std::vector<double> OptimizationProblem::numericalGradient(std::vector<double> x, double epsilon){
-    vector<double> gradient ;
+std::vector<float> OptimizationProblem::numericalGradient(std::vector<float> x, double epsilon){
+    vector<float> gradient ;
     double xerror = this->error(x);
     for(int k=0;k<x.size();k++){
         x[k] += epsilon;
@@ -23,28 +23,28 @@ std::vector<double> OptimizationProblem::numericalGradient(std::vector<double> x
     return gradient ;
 }
 
-std::vector<double> OptimizationProblem::minimizeByLBFGS(std::vector<double> x0, int m, int maxiter, int stepiter, double tolerance, double min_improvement){
+std::vector<float> OptimizationProblem::minimizeByLBFGS(std::vector<float> x0, int m, int maxiter, int stepiter, double tolerance, double min_improvement){
     int iter = 0;
     double error = this->error(x0);
     double lasterror = std::numeric_limits<float>::max();
-    vector<double> gradient = this->gradient(x0);
+    vector<float> gradient = this->gradient(x0);
     //Console.Out.WriteLine("Start error: " + error + "  gradient norm :" + norm(gradient)) ;
     //error = feval(fun,x.p,1);
     //gradient = feval(fun,x.p,2);
-    vector<double> g = gradient;
+    vector<float> g = gradient;
     //preallocate arrays
     int k = 0, j;
-    vector<vector<double>> s ;
-    vector<double> rho ;
-    vector<vector<double>> y ;
-    vector<double> nw ;
-    vector<double> r, q;
+    vector<vector<float>> s ;
+    vector<float> rho ;
+    vector<vector<float>> y ;
+    vector<float> nw ;
+    vector<float> r, q;
     double B;
 
     for(int k=0;k<m;k++){
-        s.push_back(vector<double>());
+        s.push_back(vector<float>());
         rho.push_back(0);
-        y.push_back(vector<double>());
+        y.push_back(vector<float>());
         nw.push_back(0);
     }
 
@@ -101,9 +101,9 @@ std::vector<double> OptimizationProblem::minimizeByLBFGS(std::vector<double> x0,
 
 }
 
-std::vector<double> OptimizationProblem::minimumByGradientDescent(std::vector<double> x0, double tolerance, int maxiter){
-    vector<double> x = x0 ;
-    vector<double> gradient = this->gradient(x0) ;
+std::vector<float> OptimizationProblem::minimumByGradientDescent(std::vector<float> x0, double tolerance, int maxiter){
+    vector<float> x = x0 ;
+    vector<float> gradient = this->gradient(x0) ;
     int iteration = 0 ;
     while(dot(gradient,gradient) > tolerance*tolerance && iteration < maxiter){
         iteration++ ;
@@ -116,7 +116,7 @@ std::vector<double> OptimizationProblem::minimumByGradientDescent(std::vector<do
 
 }
 
-double OptimizationProblem::stepSize(std::vector<double> x0, std::vector<double> d, double alpha, int maxit, double c1, double c2){
+double OptimizationProblem::stepSize(std::vector<float> x0, std::vector<float> d, double alpha, int maxit, double c1, double c2){
     //get error and gradient at starting point  
     double fx0 = this->error(x0);
     double gx0 = dot(this->gradient(x0), d);
@@ -124,7 +124,7 @@ double OptimizationProblem::stepSize(std::vector<double> x0, std::vector<double>
     double alphaL = 0;
     double alphaR = 1000;
     for (int iter = 1; iter <= maxit; iter++){
-        vector<double> xp = add(x0, scale(d, alpha)); // get the point at this alpha
+        vector<float> xp = add(x0, scale(d, alpha)); // get the point at this alpha
         double erroralpha = this->error(xp); //get the error at that point
         if (erroralpha >= fx0 + alpha * c1 * gx0)	{ // if error is not sufficiently reduced
             alphaR = alpha;//move halfway between current alpha and lower alpha
@@ -146,36 +146,36 @@ double OptimizationProblem::stepSize(std::vector<double> x0, std::vector<double>
     return alpha;
 }
 
-std::vector<double> OptimizationProblem::add(std::vector<double> a, std::vector<double> b){
-    std::vector<double> c ;
+std::vector<float> OptimizationProblem::add(std::vector<float> a, std::vector<float> b){
+    std::vector<float> c(a.size(),0) ;
     for(int k=0;k<a.size();k++){
-        c.push_back(a[k] + b[k]);
+        c[k] = a[k] + b[k];
     }
     return c ;
 }
-std::vector<double> OptimizationProblem::subtract(std::vector<double> a, std::vector<double> b){
-    std::vector<double> c ;
+std::vector<float> OptimizationProblem::subtract(std::vector<float> a, std::vector<float> b){
+    std::vector<float> c(a.size(),0) ;
     for(int k=0;k<a.size();k++){
-        c.push_back(a[k] - b[k]);
+        c[k] = a[k] - b[k];
     }
     return c ;
 }
-double OptimizationProblem::dot(std::vector<double> a, std::vector<double> b){
+double OptimizationProblem::dot(std::vector<float> a, std::vector<float> b){
     double dot = 0 ;
     for(int k=0;k<a.size();k++){
         dot += a[k] * b[k] ;
     }
     return dot ;
 }
-std::vector<double> OptimizationProblem::scale(std::vector<double> a, double s){
-    std::vector<double> c ;
+std::vector<float> OptimizationProblem::scale(std::vector<float> a, double s){
+    std::vector<float> c(a.size(),0) ;
     for(int k=0;k<a.size();k++){
-        c.push_back(a[k] *s);
+        c[k] = a[k] *s ;
     }
     return c ;
 }
 
-double OptimizationProblem::norm(std::vector<double> a){
+double OptimizationProblem::norm(std::vector<float> a){
     return sqrt(dot(a,a));
 }
 
@@ -183,23 +183,23 @@ double OptimizationProblem::norm(std::vector<double> a){
 OptimizationProblem::~OptimizationProblem(){}
 
 // Return the current x for this object
-std::vector<double> OptimizationProblem::getX(){
+std::vector<float> OptimizationProblem::getX(){
     printf("Called optimization get, but it wasn't defined for this object!\n");
-    return std::vector<double>();
+    return std::vector<float>();
 }
 
 // Set this object to a given x
-void OptimizationProblem::setX(std::vector<double> x){
+void OptimizationProblem::setX(std::vector<float> x){
     printf("Called optimization set,but it wasn't defined for this object!\n");
 }
 
 // Returns the error to be minimized for the given input
-double OptimizationProblem::error(std::vector<double> x){
+double OptimizationProblem::error(std::vector<float> x){
     printf("Called optimization error,but it wasn't defined for this object!\n");
     return 0;
 }
 
 // Returns the gradient of error about a given input
-std::vector<double> OptimizationProblem::gradient(std::vector<double> x){
+std::vector<float> OptimizationProblem::gradient(std::vector<float> x){
     return numericalGradient(x, 0.0001);
 }
