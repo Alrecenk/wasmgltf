@@ -1303,7 +1303,7 @@ void GLTF::deletePin(std::string name){
 
 // run inverse kinematics on model to bones to attemp to satisfy pin constraints
 void GLTF::applyPins(){
-    vector<double> x0 = getX() ;
+    vector<float> x0 = getX() ;
 /*
     printf("Starting x:\n");
     for(const auto c : x0){
@@ -1311,7 +1311,7 @@ void GLTF::applyPins(){
     }
     printf("\n");
 */
-    vector<double> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.0001, 1) ;
+    vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.0001, 1) ;
 
 /*
     printf("Finalx:\n");
@@ -1325,8 +1325,8 @@ void GLTF::applyPins(){
 }
 
 // Return the current x for this object
-std::vector<double> GLTF::getX(){
-    vector<double> x ;
+std::vector<float> GLTF::getX(){
+    vector<float> x ;
     for(int node_id=0; node_id<nodes.size(); node_id++){   
         Node& node = nodes[node_id];
         x.push_back(node.rotation.w * node.stiffness);
@@ -1338,17 +1338,17 @@ std::vector<double> GLTF::getX(){
 }
 
 // Set this object to a given x
-void GLTF::setX(std::vector<double> x){
+void GLTF::setX(std::vector<float> x){
     int j = 0 ;
     for(int node_id=0; node_id<nodes.size(); node_id++){   
         Node& node = nodes[node_id];
-        node.rotation.w = x[j] / node.stiffness;
+        node.rotation.w = x[j];
         j++;
-        node.rotation.x = x[j] / node.stiffness;
+        node.rotation.x = x[j];
         j++;
-        node.rotation.y = x[j] / node.stiffness;
+        node.rotation.y = x[j];
         j++;
-        node.rotation.z = x[j] / node.stiffness;
+        node.rotation.z = x[j];
         j++;
         node.rotation = glm::normalize(node.rotation);
     }
@@ -1356,8 +1356,8 @@ void GLTF::setX(std::vector<double> x){
 }
 
 // Returns the error to be minimized for the given input
-double GLTF::error(std::vector<double> x){
-    //vector<double> restore = getX();
+double GLTF::error(std::vector<float> x){
+    //vector<float> restore = getX();
     setX(x);
     double error = 0 ;
     for(const auto& [name, pin] : pins){
@@ -1435,10 +1435,10 @@ glm::vec3 GLTF::dedx(glm::vec3 x, glm::quat rot, glm::vec3 dedx){
 }
 
 // Returns the gradient of error about a given input
-std::vector<double> GLTF::gradient(std::vector<double> x){
-    //std::vector<double> numerical = numericalGradient(x,0.001);
+std::vector<float> GLTF::gradient(std::vector<float> x){
+    //std::vector<float> numerical = numericalGradient(x,0.001);
     
-    std::vector<double> gradient ;
+    std::vector<float> gradient ;
     gradient.resize(x.size());
     for(int k=0;k<x.size();k++){
         gradient[k] = 0.0 ;

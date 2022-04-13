@@ -218,16 +218,16 @@ class GLTF : public OptimizationProblem{
         void setStiffnessByDepth(int node_id, float stiffness);
 
         // Return the current x for this object
-        std::vector<double> getX() override;
+        std::vector<float> getX() override;
 
         // Set this object to a given x
-        void setX(std::vector<double> x) override;
+        void setX(std::vector<float> x) override;
 
         // Returns the error to be minimized for the given input
-        double error(std::vector<double> x) override;
+        double error(std::vector<float> x) override;
 
         // Returns the gradient of error about a given input
-        std::vector<double> gradient(std::vector<double> x) override;
+        std::vector<float> gradient(std::vector<float> x) override;
 
     private:
         // Performs the duplicate work for the various get vertex buffer functions
