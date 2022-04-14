@@ -1388,7 +1388,7 @@ double GLTF::error(std::vector<float> x){
 glm::vec4 GLTF::dedq(glm::vec3 x, glm::quat rot, glm::vec3 dedx){
 
     //printf("dedq input x = %f,%f,%f  q = %f, %f, %f, %f   dedx = %f, %f, %f\n", x.x,x.y,x.z,rot.w,rot.x,rot.y,rot.z,dedx.x,dedx.y,dedx.z);
-    float epsilon = 0.001;
+    float epsilon = 0.0001;
     glm::vec4 gradient ;
     vec3 xo = applyRotation(x,rot);
     
@@ -1415,7 +1415,7 @@ glm::vec4 GLTF::dedq(glm::vec3 x, glm::quat rot, glm::vec3 dedx){
 glm::vec3 GLTF::dedx(glm::vec3 x, glm::quat rot, glm::vec3 dedx){
     //printf("dedx input x = %f,%f,%f  q = %f, %f, %f, %f   dedx = %f, %f, %f\n", x.x,x.y,x.z,rot.w,rot.x,rot.y,rot.z,dedx.x,dedx.y,dedx.z);
     
-    float epsilon = 0.001;
+    float epsilon = 0.0001;
     glm::vec3 gradient ;
     vec3 xo = applyRotation(x,rot);
 
@@ -1436,7 +1436,7 @@ glm::vec3 GLTF::dedx(glm::vec3 x, glm::quat rot, glm::vec3 dedx){
 
 // Returns the gradient of error about a given input
 std::vector<float> GLTF::gradient(std::vector<float> x){
-    //std::vector<float> numerical = numericalGradient(x,0.001);
+    //std::vector<float> numerical = numericalGradient(x,0.0001);
     
     std::vector<float> gradient ;
     gradient.resize(x.size());
@@ -1480,8 +1480,8 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
             Node& bone = nodes[bones[bi]];
             // gradient of rotation of this bone
             vec4 dedq = GLTF::dedq(xi[bi], bone.rotation, dedx) ;
-            gradient[bones[bi]*4] += dedq.w/bone.stiffness ; 
-            gradient[bones[bi]*4+1] += dedq.x/bone.stiffness; // TODO stiffness
+            //gradient[bones[bi]*4] += dedq.w/bone.stiffness ; 
+            gradient[bones[bi]*4+1] += dedq.x/bone.stiffness;
             gradient[bones[bi]*4+2] += dedq.y/bone.stiffness;
             gradient[bones[bi]*4+3] += dedq.z/bone.stiffness;
             // prepare dedex for next bone
