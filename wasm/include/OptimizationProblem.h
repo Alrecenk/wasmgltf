@@ -13,16 +13,16 @@ class OptimizationProblem {
     virtual std::vector<float> getX();
 
     // Set this object to a given x
-    virtual void setX(std::vector<float> x);
+    virtual void setX(const std::vector<float> x);
 
     // Returns the error to be minimized for the given input
-    virtual double error(std::vector<float> x);
+    virtual double error(const std::vector<float> x);
 
     // Returns the gradient of error about a given input
-    virtual std::vector<float> gradient(std::vector<float> x);
+    virtual std::vector<float> gradient(const std::vector<float> x);
 
     //Returns the gradient calculated numerically using the error function
-    std::vector<float> numericalGradient(std::vector<float> x, double epsilon);
+    std::vector<float> numericalGradient(const std::vector<float> x, double epsilon);
 
 
     //Returns the local minimum by using the LBFGS method starting from x0
@@ -30,25 +30,27 @@ class OptimizationProblem {
 	//stepiter is the maximum iterations to perform in line search
 	//tolerance maximum gradient norm of error used an an exit condition
 	//min_improvement is a fraction of the error removed in this step considered as an exit condition
-    std::vector<float> minimizeByLBFGS(std::vector<float> x0, int m, int maxiter, int stepiter, double tolerance, double min_improvement);
+    std::vector<float> minimizeByLBFGS(const std::vector<float> x0, int m, int maxiter, int stepiter, double tolerance, double min_improvement);
 
     //starting from w0 searches for a weight vector using gradient descent
 	//and Wolfe condition line-search until the gradient magnitude is below tolerance
 	//or a maximum number of iterations is reached
-    std::vector<float> minimumByGradientDescent(std::vector<float> x0, double tolerance, int maxiter);
+    std::vector<float> minimumByGradientDescent(const std::vector<float> x0, double tolerance, int maxiter);
 
     //Performs a binary search to satisfy the Wolfe conditions
 	//returns alpha where next x = x0 + alpha*d 
 	//guarantees convergence as long as search direction is bounded away from being orthogonal with gradient
 	//x0 is starting point, d is search direction, alpha is starting step size, maxit is max iterations
 	//c1 and c2 are the constants of the Wolfe conditions (0.1 and 0.9 can work)
-    double stepSize(std::vector<float> x0, std::vector<float> d, double alpha, int maxit, double c1, double c2);
+    double stepSize(const std::vector<float> x0, const std::vector<float> d, double alpha, int maxit, double c1, double c2);
 
     static std::vector<float> add(std::vector<float> a, std::vector<float> b);
     static std::vector<float> subtract(std::vector<float> a, std::vector<float> b);
     static double dot(std::vector<float> a, std::vector<float> b);
     static std::vector<float> scale(std::vector<float> a, double s);
     static double norm(std::vector<float> a);
+
+    static bool containsNan(const std::vector<float> x0);
 
 };
 

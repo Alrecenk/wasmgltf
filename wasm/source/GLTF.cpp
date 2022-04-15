@@ -20,6 +20,8 @@ using std::map;
 using glm::vec2;
 using glm::vec3;
 using glm::vec4;
+using glm::dvec3;
+using glm::dvec4;
 using glm::ivec4;
 using glm::mat4;
 typedef GLTF::Triangle Triangle;
@@ -1265,7 +1267,7 @@ glm::quat GLTF::slerp(glm::quat A, glm::quat B, float t){
     }
 }
 
-glm::vec3 GLTF::applyRotation(glm::vec3 x, glm::quat rot){
+glm::vec3 GLTF::applyRotation(const glm::vec3 x, const glm::quat rot){
     /*
     vec3 u = vec3(rot.x, rot.y, rot.z);
     return u * (glm::dot(u,x) *2) + x * (2*rot.w*rot.w-1) + glm::cross(u,x) * (2*rot.w) ;
@@ -1342,13 +1344,13 @@ void GLTF::setX(std::vector<float> x){
     int j = 0 ;
     for(int node_id=0; node_id<nodes.size(); node_id++){   
         Node& node = nodes[node_id];
-        node.rotation.w = x[j];
+        node.rotation.w = x[j]/node.stiffness;
         j++;
-        node.rotation.x = x[j];
+        node.rotation.x = x[j]/node.stiffness;
         j++;
-        node.rotation.y = x[j];
+        node.rotation.y = x[j]/node.stiffness;
         j++;
-        node.rotation.z = x[j];
+        node.rotation.z = x[j]/node.stiffness;
         j++;
         node.rotation = glm::normalize(node.rotation);
     }
@@ -1385,51 +1387,52 @@ double GLTF::error(std::vector<float> x){
 }
 
 // Computes the gradient of a rotation's quaternion with respect to an error given gradient of x output to that error
-glm::vec4 GLTF::dedq(glm::vec3 x, glm::quat rot, glm::vec3 dedx){
+glm::vec4 GLTF::dedq(const glm::vec3 x, const glm::quat rot, const glm::dvec3 dedx){
 
+    glm::quat r = rot ;
     //printf("dedq input x = %f,%f,%f  q = %f, %f, %f, %f   dedx = %f, %f, %f\n", x.x,x.y,x.z,rot.w,rot.x,rot.y,rot.z,dedx.x,dedx.y,dedx.z);
-    float epsilon = 0.0001;
+    double epsilon = 0.0001;
     glm::vec4 gradient ;
-    vec3 xo = applyRotation(x,rot);
+    dvec3 xo = applyRotation(x,rot);
     
-    rot.x += epsilon ;
-    gradient.x = glm::dot(dedx, (applyRotation(x,rot) - xo)/epsilon );
-    rot.x -= epsilon;
+    r.x = rot.x + epsilon ;
+    gradient.x = glm::dot(dedx, (dvec3(applyRotation(x,r)) - xo)/epsilon );
+    r.x = rot.x;
     
-    rot.y += epsilon ;
-    gradient.y = glm::dot(dedx, (applyRotation(x,rot) - xo)/epsilon );
-    rot.y -= epsilon;
+    r.y = rot.y + epsilon ;
+    gradient.y = glm::dot(dedx, (dvec3(applyRotation(x,r)) - xo)/epsilon );
+    r.y = rot.y;
 
-    rot.z += epsilon ;
-    gradient.z = glm::dot(dedx, (applyRotation(x,rot) - xo)/epsilon );
-    rot.z -= epsilon;
+    r.z = rot.z + epsilon ;
+    gradient.z = glm::dot(dedx, (dvec3(applyRotation(x,r)) - xo)/epsilon );
+    r.z = rot.z;
 
-    rot.w += epsilon ;
-    gradient.w = glm::dot(dedx, (applyRotation(x,rot) - xo)/epsilon );
-    rot.w -= epsilon;
+    r.w = rot.w + epsilon ;
+    gradient.w = glm::dot(dedx, (dvec3(applyRotation(x,r)) - xo)/epsilon );
+    r.w = rot.w;
     
     return gradient ;
 }
 
         // Computes the gradient of a rotation's input with respect to an error given gradient of x output to that error
-glm::vec3 GLTF::dedx(glm::vec3 x, glm::quat rot, glm::vec3 dedx){
+glm::dvec3 GLTF::dedx(const glm::vec3 x, const glm::quat rot, const glm::dvec3 dedx){
     //printf("dedx input x = %f,%f,%f  q = %f, %f, %f, %f   dedx = %f, %f, %f\n", x.x,x.y,x.z,rot.w,rot.x,rot.y,rot.z,dedx.x,dedx.y,dedx.z);
-    
-    float epsilon = 0.0001;
-    glm::vec3 gradient ;
-    vec3 xo = applyRotation(x,rot);
+    glm::vec3 p = x ;
+    double epsilon = 0.0001;
+    dvec3 gradient ;
+    dvec3 xo = applyRotation(x,rot);
 
-    x.x += epsilon ;
-    gradient.x = glm::dot(dedx, (applyRotation(x,rot) - xo)/epsilon );
-    x.x -= epsilon;
+    p.x  = x.x + epsilon;
+    gradient.x = glm::dot(dedx, (dvec3(applyRotation(p,rot)) - xo)/epsilon );
+    p.x = x.x;
     
-    x.y += epsilon ;
-    gradient.y = glm::dot(dedx, (applyRotation(x,rot) - xo)/epsilon );
-    x.y -= epsilon;
+    p.y  = x.y + epsilon;
+    gradient.y = glm::dot(dedx, (dvec3(applyRotation(p,rot)) - xo)/epsilon );
+    p.y = x.y;
 
-    x.z += epsilon ;
-    gradient.z = glm::dot(dedx, (applyRotation(x,rot) - xo)/epsilon );
-    x.z -= epsilon;
+    p.z  = x.z + epsilon;
+    gradient.z = glm::dot(dedx, (dvec3(applyRotation(p,rot)) - xo)/epsilon );
+    p.z = x.z;
     
     return gradient ;
 }
@@ -1468,19 +1471,31 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
         actual = transform * vec4(actual,1.0) ; // overall model pose transform
 
         //printf("point: %f, %f, %f\n", actual.x, actual.y, actual.z);
-        vec3 diff = (actual - pin.target) ;
+        dvec3 diff = (dvec3(actual) - dvec3(pin.target)) ;
         error = pin.weight * glm::dot(diff, diff);
 
-        vec3 dedx =  transform * vec4(diff,0.0) * 2.0f * pin.weight ;
+        if(isnan(error)){
+            printf("Error is nan! Something has gone very wrong in IK.\n") ;
+            printf("Xi :\n");
+            for(int k=0;k<x.size();k++){
+                printf("%f, ", x[k]);
+            }
+            printf("\n");
+            printf("point: %f, %f, %f\n", actual.x, actual.y, actual.z);
+            printf("target: %f, %f, %f\n", pin.target.x, pin.target.y, pin.target.z);
+            return gradient ;
+        }
+        dvec3 dedx =  transform * dvec4(diff,0.0) * 2.0f * pin.weight ;
 
         //printf("Error: %f \n", error);
         //printf("dedx root: %f, %f, %f\n", dedx.x, dedx.y, dedx.z);
+        //printf("Bone depth: %d\n", (int)bones.size());
         // back propogate gradient
         for(int bi = bones.size()-1; bi>= 0; bi--){
             Node& bone = nodes[bones[bi]];
             // gradient of rotation of this bone
             vec4 dedq = GLTF::dedq(xi[bi], bone.rotation, dedx) ;
-            //gradient[bones[bi]*4] += dedq.w/bone.stiffness ; 
+            gradient[bones[bi]*4] += dedq.w/bone.stiffness ; 
             gradient[bones[bi]*4+1] += dedq.x/bone.stiffness;
             gradient[bones[bi]*4+2] += dedq.y/bone.stiffness;
             gradient[bones[bi]*4+3] += dedq.z/bone.stiffness;
@@ -1496,8 +1511,13 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
     /*
     printf("IK gradient:\n");
     for(int k=0;k<gradient.size();k++){
+        float s = gradient[k]/numerical[k] ;
         if(abs(gradient[k]) > 0.0001 ||  abs(numerical[k]) > 0.0001){
-            printf("%d: %f = %f, ", k, gradient[k], numerical[k]);
+
+            printf("%d: %f = %f  * %f, ", k, gradient[k], numerical[k], s);
+        }
+        if(k%4 == 3){
+            printf("\n");
         }
     }
     printf("\n");

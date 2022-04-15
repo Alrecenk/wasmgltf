@@ -11,20 +11,22 @@ https://github.com/Alrecenk/StructureFromMotion/blob/master/src/Utility.java
 
 
 //Returns the gradient calculated numerically using the error function
-std::vector<float> OptimizationProblem::numericalGradient(std::vector<float> x, double epsilon){
+std::vector<float> OptimizationProblem::numericalGradient(const std::vector<float> x, double epsilon){
     vector<float> gradient ;
     double xerror = this->error(x);
+    vector<float> xo = x ;
     for(int k=0;k<x.size();k++){
-        x[k] += epsilon;
-        double xplus = this->error(x);
-        x[k] -= epsilon;
+        xo[k] = x[k] + epsilon;
+        double xplus = this->error(xo);
+        xo[k] = x[k];
         gradient.push_back((xplus-xerror)/(epsilon));
     }
     return gradient ;
 }
 
-std::vector<float> OptimizationProblem::minimizeByLBFGS(std::vector<float> x0, int m, int maxiter, int stepiter, double tolerance, double min_improvement){
+std::vector<float> OptimizationProblem::minimizeByLBFGS(const std::vector<float> x0, int m, int maxiter, int stepiter, double tolerance, double min_improvement){
     int iter = 0;
+    std::vector<float> x = x0;
     double error = this->error(x0);
     double lasterror = std::numeric_limits<float>::max();
     vector<float> gradient = this->gradient(x0);
@@ -55,7 +57,7 @@ std::vector<float> OptimizationProblem::minimizeByLBFGS(std::vector<float> x0, i
         k = k + 1;
         g = gradient;
         //%initial pass just use gradient descent
-        if (k == 1 || x0.size() ==1){
+        if (k == 1 || x.size() ==1){
             r = g;
         }else{
             //two loop formula
@@ -80,19 +82,19 @@ std::vector<float> OptimizationProblem::minimizeByLBFGS(std::vector<float> x0, i
         }
         //% get step size
         // alfa = StepSize(fun, x, -r, 1,struct('c1',10^-4,'c2',.9,'maxit',100)) ;
-        double alfa = stepSize(x0, scale(r, -1), 1, stepiter, .1, .9);
+        double alfa = stepSize(x, scale(r, -1), 1, stepiter, .1, .9);
 
         //%apply step and update arrays
         j = k % m;
         s[j] = scale(r, -alfa);
-        /*
-        if (containsnan(s[j]) || alfa <= 0){
-            System.err.println("Invalid exit condition in LBFGS!" + alfa);
+        
+        if (containsNan(s[j]) || alfa <= 0){
+            printf("Invalid exit condition in LBFGS! %f \n" , alfa);
             return x0;
-        }*/
-        x0 = add(x0, s[j]);
-        gradient = this->gradient(x0);
-        error = this->error(x0);
+        }
+        x = add(x, s[j]);
+        gradient = this->gradient(x);
+        error = this->error(x);
         y[j] = subtract(gradient, g);
         rho[j] = 1.0 / dot(y[j], s[j]);
     }
@@ -101,7 +103,7 @@ std::vector<float> OptimizationProblem::minimizeByLBFGS(std::vector<float> x0, i
 
 }
 
-std::vector<float> OptimizationProblem::minimumByGradientDescent(std::vector<float> x0, double tolerance, int maxiter){
+std::vector<float> OptimizationProblem::minimumByGradientDescent(const std::vector<float> x0, double tolerance, int maxiter){
     vector<float> x = x0 ;
     vector<float> gradient = this->gradient(x0) ;
     int iteration = 0 ;
@@ -116,7 +118,7 @@ std::vector<float> OptimizationProblem::minimumByGradientDescent(std::vector<flo
 
 }
 
-double OptimizationProblem::stepSize(std::vector<float> x0, std::vector<float> d, double alpha, int maxit, double c1, double c2){
+double OptimizationProblem::stepSize(const std::vector<float> x0, const std::vector<float> d, double alpha, int maxit, double c1, double c2){
     //get error and gradient at starting point  
     double fx0 = this->error(x0);
     double gx0 = dot(this->gradient(x0), d);
@@ -146,28 +148,28 @@ double OptimizationProblem::stepSize(std::vector<float> x0, std::vector<float> d
     return alpha;
 }
 
-std::vector<float> OptimizationProblem::add(std::vector<float> a, std::vector<float> b){
+std::vector<float> OptimizationProblem::add(const std::vector<float> a, const std::vector<float> b){
     std::vector<float> c(a.size(),0) ;
     for(int k=0;k<a.size();k++){
         c[k] = a[k] + b[k];
     }
     return c ;
 }
-std::vector<float> OptimizationProblem::subtract(std::vector<float> a, std::vector<float> b){
+std::vector<float> OptimizationProblem::subtract(const std::vector<float> a,const std::vector<float> b){
     std::vector<float> c(a.size(),0) ;
     for(int k=0;k<a.size();k++){
         c[k] = a[k] - b[k];
     }
     return c ;
 }
-double OptimizationProblem::dot(std::vector<float> a, std::vector<float> b){
+double OptimizationProblem::dot(const std::vector<float> a, const std::vector<float> b){
     double dot = 0 ;
     for(int k=0;k<a.size();k++){
         dot += a[k] * b[k] ;
     }
     return dot ;
 }
-std::vector<float> OptimizationProblem::scale(std::vector<float> a, double s){
+std::vector<float> OptimizationProblem::scale(const std::vector<float> a, double s){
     std::vector<float> c(a.size(),0) ;
     for(int k=0;k<a.size();k++){
         c[k] = a[k] *s ;
@@ -175,7 +177,7 @@ std::vector<float> OptimizationProblem::scale(std::vector<float> a, double s){
     return c ;
 }
 
-double OptimizationProblem::norm(std::vector<float> a){
+double OptimizationProblem::norm(const std::vector<float> a){
     return sqrt(dot(a,a));
 }
 
@@ -189,17 +191,26 @@ std::vector<float> OptimizationProblem::getX(){
 }
 
 // Set this object to a given x
-void OptimizationProblem::setX(std::vector<float> x){
+void OptimizationProblem::setX(const std::vector<float> x){
     printf("Called optimization set,but it wasn't defined for this object!\n");
 }
 
 // Returns the error to be minimized for the given input
-double OptimizationProblem::error(std::vector<float> x){
+double OptimizationProblem::error(const std::vector<float> x){
     printf("Called optimization error,but it wasn't defined for this object!\n");
     return 0;
 }
 
 // Returns the gradient of error about a given input
-std::vector<float> OptimizationProblem::gradient(std::vector<float> x){
+std::vector<float> OptimizationProblem::gradient(const std::vector<float> x){
     return numericalGradient(x, 0.0001);
+}
+
+bool OptimizationProblem::containsNan(const std::vector<float> x0){
+    for(const auto& x : x0){
+        if(isnan(x)){
+            return true;
+        }
+    }
+    return false;
 }
