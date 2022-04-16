@@ -1389,17 +1389,17 @@ double GLTF::error(std::vector<float> x){
 // Computes the gradient of a rotation's quaternion with respect to an error given gradient of x output to that error
 glm::vec4 GLTF::dedq(const glm::vec3 x, const glm::quat rot, const glm::dvec3 dedx){
     float dxdrx = 4 * rot.x * x.x + 2 * ( rot.y * x.y + rot.z * x.z ) ;
-    float dxdry = rot.x * 2 * x.y + x.z * 2 * rot.w ;
-    float dxdrz = rot.x * 2 * x.z - x.y * 2 * rot.w ;
+    float dxdry = 2 * (rot.x * x.y + x.z * rot.w) ;
+    float dxdrz = 2 * ( rot.x * x.z - x.y * rot.w) ;
     float dxdrw = 4 *  rot.w * x.x + 2 * (rot.y * x.z - rot.z * x.y) ;
 
-    float dydrx = rot.y * 2 * x.x - x.z * 2*rot.w ;
+    float dydrx = 2 * (rot.y * x.x - x.z *rot.w) ;
     float dydry = 4 * rot.y * x.y + 2*( rot.x * x.x + rot.z * x.z);
-    float dydrz = rot.y * 2 * x.z + x.x * 2 * rot.w;
+    float dydrz = 2 * (rot.y * x.z + x.x * rot.w);
     float dydrw = 4 *  rot.w * x.y + 2 * (rot.z * x.x - rot.x * x.z) ;
 
-    float dzdrx = rot.z * 2 * x.x + x.y * 2 * rot.w ;
-    float dzdry = rot.z * 2 * x.y - x.x * 2 * rot.w ;
+    float dzdrx = 2 * (rot.z * x.x + x.y  * rot.w) ;
+    float dzdry = 2 * (rot.z * x.y - x.x * rot.w) ;
     float dzdrz = 4 * rot.z * x.z + 2 * ( rot.x * x.x + rot.y * x.y);
     float dzdrw = 4 *  rot.w * x.z + 2 * (rot.x*x.y - rot.y*x.x) ;
 
@@ -1431,6 +1431,9 @@ glm::dvec3 GLTF::dedx(const glm::vec3 x, const glm::quat rot, const glm::dvec3 d
     p.z  = x.z + epsilon;
     gradient.z = glm::dot(dedx, (dvec3(applyRotation(p,rot)) - xo)/epsilon );
     p.z = x.z;
+
+
+
     
     return gradient ;
 }
