@@ -1388,30 +1388,28 @@ double GLTF::error(std::vector<float> x){
 
 // Computes the gradient of a rotation's quaternion with respect to an error given gradient of x output to that error
 glm::vec4 GLTF::dedq(const glm::vec3 x, const glm::quat rot, const glm::dvec3 dedx){
+    float dxdrx = 4 * rot.x * x.x + 2 * ( rot.y * x.y + rot.z * x.z ) ;
+    float dxdry = rot.x * 2 * x.y + x.z * 2 * rot.w ;
+    float dxdrz = rot.x * 2 * x.z - x.y * 2 * rot.w ;
+    float dxdrw = 4 *  rot.w * x.x + 2 * (rot.y * x.z - rot.z * x.y) ;
 
-    glm::quat r = rot ;
-    //printf("dedq input x = %f,%f,%f  q = %f, %f, %f, %f   dedx = %f, %f, %f\n", x.x,x.y,x.z,rot.w,rot.x,rot.y,rot.z,dedx.x,dedx.y,dedx.z);
-    double epsilon = 0.0001;
-    glm::vec4 gradient ;
-    dvec3 xo = applyRotation(x,rot);
-    
-    r.x = rot.x + epsilon ;
-    gradient.x = glm::dot(dedx, (dvec3(applyRotation(x,r)) - xo)/epsilon );
-    r.x = rot.x;
-    
-    r.y = rot.y + epsilon ;
-    gradient.y = glm::dot(dedx, (dvec3(applyRotation(x,r)) - xo)/epsilon );
-    r.y = rot.y;
+    float dydrx = rot.y * 2 * x.x - x.z * 2*rot.w ;
+    float dydry = 4 * rot.y * x.y + 2*( rot.x * x.x + rot.z * x.z);
+    float dydrz = rot.y * 2 * x.z + x.x * 2 * rot.w;
+    float dydrw = 4 *  rot.w * x.y + 2 * (rot.z * x.x - rot.x * x.z) ;
 
-    r.z = rot.z + epsilon ;
-    gradient.z = glm::dot(dedx, (dvec3(applyRotation(x,r)) - xo)/epsilon );
-    r.z = rot.z;
+    float dzdrx = rot.z * 2 * x.x + x.y * 2 * rot.w ;
+    float dzdry = rot.z * 2 * x.y - x.x * 2 * rot.w ;
+    float dzdrz = 4 * rot.z * x.z + 2 * ( rot.x * x.x + rot.y * x.y);
+    float dzdrw = 4 *  rot.w * x.z + 2 * (rot.x*x.y - rot.y*x.x) ;
 
-    r.w = rot.w + epsilon ;
-    gradient.w = glm::dot(dedx, (dvec3(applyRotation(x,r)) - xo)/epsilon );
-    r.w = rot.w;
-    
-    return gradient ;
+    vec4 dedq ;
+    dedq.x = dxdrx * dedx.x + dydrx * dedx.y + dzdrx * dedx.z ;
+    dedq.y = dxdry * dedx.x + dydry * dedx.y + dzdry * dedx.z ;
+    dedq.z = dxdrz * dedx.x + dydrz * dedx.y + dzdrz * dedx.z ;
+    dedq.w = dxdrw * dedx.x + dydrw * dedx.y + dzdrw * dedx.z ;
+
+    return dedq;
 }
 
         // Computes the gradient of a rotation's input with respect to an error given gradient of x output to that error
