@@ -1414,17 +1414,17 @@ glm::vec4 GLTF::dedq(const glm::vec3 x, const glm::quat rot, const glm::dvec3 de
 
 // Computes the gradient of a rotation's x input with respect to an error given gradient of x output to that error
 glm::dvec3 GLTF::dedx(const glm::vec3 x, const glm::quat rot, const glm::dvec3 dedx){
-    float dxdx = rot.x*rot.x * 2 + (2*rot.w*rot.w-1.0f) ;
-    float dxdy = rot.x*rot.y * 2 - rot.z * 2 * rot.w ;
-    float dxdz = rot.x * 2 * rot.z + rot.y * 2 * rot.w ;
+    float dxdx = 2 * (rot.x*rot.x + rot.w*rot.w) - 1.0f ;
+    float dxdy = 2 * (rot.x*rot.y - rot.z*rot.w) ;
+    float dxdz = 2 * (rot.x*rot.z + rot.y*rot.w) ;
 
-    float dydx = rot.y * 2 * rot.x + rot.z * 2 * rot.w;
-    float dydy = rot.y * 2 * rot.y + (2*rot.w*rot.w-1.0f);
-    float dydz = rot.y * 2 * rot.z -rot.x * 2 * rot.w ;
+    float dydx = 2 * (rot.y*rot.x + rot.z*rot.w) ;
+    float dydy = 2 * (rot.y*rot.y + rot.w*rot.w) - 1.0f ;
+    float dydz = 2 * (rot.y*rot.z - rot.x*rot.w) ;
 
-    float dzdx = rot.z * 2 * rot.x - rot.y * 2*rot.w;
-    float dzdy = rot.z * 2 * rot.y + rot.x * 2 * rot.w;
-    float dzdz = rot.z * rot.z * 2 + (2*rot.w*rot.w-1.0f) ;
+    float dzdx = 2 * (rot.z*rot.x - rot.y*rot.w) ;
+    float dzdy = 2 * (rot.z*rot.y + rot.x*rot.w) ;
+    float dzdz = 2 * (rot.z*rot.z + rot.w*rot.w) - 1.0f ;
 
     vec3 dedxin ;
     dedxin.x = dxdx * dedx.x + dydx * dedx.y + dzdx * dedx.z ;
