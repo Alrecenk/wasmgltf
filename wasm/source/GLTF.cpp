@@ -1313,8 +1313,7 @@ void GLTF::applyPins(){
     }
     printf("\n");
 */
-    vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.0001, 1) ;
-
+    vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.0001, 2) ;
 /*
     printf("Finalx:\n");
     for(const auto c : xf){
@@ -1387,7 +1386,7 @@ double GLTF::error(std::vector<float> x){
 }
 
 // Computes the gradient of a rotation's quaternion with respect to an error given gradient of x output to that error
-glm::vec4 GLTF::dedq(const glm::vec3 x, const glm::quat rot, const glm::dvec3 dedx){
+glm::vec4 GLTF::dedq(const glm::vec3 x, const glm::quat rot, const glm::vec3 dedx){
     float dxdrx = 4 * rot.x * x.x + 2 * ( rot.y * x.y + rot.z * x.z ) ;
     float dxdry = 2 * (rot.x * x.y + x.z * rot.w) ;
     float dxdrz = 2 * ( rot.x * x.z - x.y * rot.w) ;
@@ -1413,7 +1412,7 @@ glm::vec4 GLTF::dedq(const glm::vec3 x, const glm::quat rot, const glm::dvec3 de
 }
 
 // Computes the gradient of a rotation's x input with respect to an error given gradient of x output to that error
-glm::dvec3 GLTF::dedx(const glm::vec3 x, const glm::quat rot, const glm::dvec3 dedx){
+glm::vec3 GLTF::dedx(const glm::vec3 x, const glm::quat rot, const glm::vec3 dedx){
     float dxdx = 2 * (rot.x*rot.x + rot.w*rot.w) - 1.0f ;
     float dxdy = 2 * (rot.x*rot.y - rot.z*rot.w) ;
     float dxdz = 2 * (rot.x*rot.z + rot.y*rot.w) ;
@@ -1482,7 +1481,7 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
             printf("target: %f, %f, %f\n", pin.target.x, pin.target.y, pin.target.z);
             return gradient ;
         }
-        dvec3 dedx =  transform * dvec4(diff,0.0) * 2.0f * pin.weight ;
+        vec3 dedx =  transform * dvec4(diff,0.0) * 2.0f * pin.weight ;
 
         //printf("Error: %f \n", error);
         //printf("dedx root: %f, %f, %f\n", dedx.x, dedx.y, dedx.z);
