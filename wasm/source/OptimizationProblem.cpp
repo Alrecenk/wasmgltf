@@ -98,7 +98,7 @@ std::vector<float> OptimizationProblem::minimizeByLBFGS(const std::vector<float>
         y[j] = subtract(gradient, g);
         rho[j] = 1.0 / dot(y[j], s[j]);
     }
-    return x0;
+    return x;
 
 
 }

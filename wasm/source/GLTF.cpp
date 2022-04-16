@@ -1313,8 +1313,7 @@ void GLTF::applyPins(){
     }
     printf("\n");
 */
-    vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.0001, 1) ;
-
+    vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.0001, 2) ;
 /*
     printf("Finalx:\n");
     for(const auto c : xf){
@@ -1387,54 +1386,51 @@ double GLTF::error(std::vector<float> x){
 }
 
 // Computes the gradient of a rotation's quaternion with respect to an error given gradient of x output to that error
-glm::vec4 GLTF::dedq(const glm::vec3 x, const glm::quat rot, const glm::dvec3 dedx){
+glm::vec4 GLTF::dedq(const glm::vec3 x, const glm::quat rot, const glm::vec3 dedx){
+    float dxdrx = 4 * rot.x * x.x + 2 * ( rot.y * x.y + rot.z * x.z ) ;
+    float dxdry = 2 * (rot.x * x.y + x.z * rot.w) ;
+    float dxdrz = 2 * ( rot.x * x.z - x.y * rot.w) ;
+    float dxdrw = 4 *  rot.w * x.x + 2 * (rot.y * x.z - rot.z * x.y) ;
 
-    glm::quat r = rot ;
-    //printf("dedq input x = %f,%f,%f  q = %f, %f, %f, %f   dedx = %f, %f, %f\n", x.x,x.y,x.z,rot.w,rot.x,rot.y,rot.z,dedx.x,dedx.y,dedx.z);
-    double epsilon = 0.0001;
-    glm::vec4 gradient ;
-    dvec3 xo = applyRotation(x,rot);
-    
-    r.x = rot.x + epsilon ;
-    gradient.x = glm::dot(dedx, (dvec3(applyRotation(x,r)) - xo)/epsilon );
-    r.x = rot.x;
-    
-    r.y = rot.y + epsilon ;
-    gradient.y = glm::dot(dedx, (dvec3(applyRotation(x,r)) - xo)/epsilon );
-    r.y = rot.y;
+    float dydrx = 2 * (rot.y * x.x - x.z *rot.w) ;
+    float dydry = 4 * rot.y * x.y + 2*( rot.x * x.x + rot.z * x.z);
+    float dydrz = 2 * (rot.y * x.z + x.x * rot.w);
+    float dydrw = 4 *  rot.w * x.y + 2 * (rot.z * x.x - rot.x * x.z) ;
 
-    r.z = rot.z + epsilon ;
-    gradient.z = glm::dot(dedx, (dvec3(applyRotation(x,r)) - xo)/epsilon );
-    r.z = rot.z;
+    float dzdrx = 2 * (rot.z * x.x + x.y  * rot.w) ;
+    float dzdry = 2 * (rot.z * x.y - x.x * rot.w) ;
+    float dzdrz = 4 * rot.z * x.z + 2 * ( rot.x * x.x + rot.y * x.y);
+    float dzdrw = 4 *  rot.w * x.z + 2 * (rot.x*x.y - rot.y*x.x) ;
 
-    r.w = rot.w + epsilon ;
-    gradient.w = glm::dot(dedx, (dvec3(applyRotation(x,r)) - xo)/epsilon );
-    r.w = rot.w;
-    
-    return gradient ;
+    vec4 dedq ;
+    dedq.x = dxdrx * dedx.x + dydrx * dedx.y + dzdrx * dedx.z ;
+    dedq.y = dxdry * dedx.x + dydry * dedx.y + dzdry * dedx.z ;
+    dedq.z = dxdrz * dedx.x + dydrz * dedx.y + dzdrz * dedx.z ;
+    dedq.w = dxdrw * dedx.x + dydrw * dedx.y + dzdrw * dedx.z ;
+
+    return dedq;
 }
 
-        // Computes the gradient of a rotation's input with respect to an error given gradient of x output to that error
-glm::dvec3 GLTF::dedx(const glm::vec3 x, const glm::quat rot, const glm::dvec3 dedx){
-    //printf("dedx input x = %f,%f,%f  q = %f, %f, %f, %f   dedx = %f, %f, %f\n", x.x,x.y,x.z,rot.w,rot.x,rot.y,rot.z,dedx.x,dedx.y,dedx.z);
-    glm::vec3 p = x ;
-    double epsilon = 0.0001;
-    dvec3 gradient ;
-    dvec3 xo = applyRotation(x,rot);
+// Computes the gradient of a rotation's x input with respect to an error given gradient of x output to that error
+glm::vec3 GLTF::dedx(const glm::vec3 x, const glm::quat rot, const glm::vec3 dedx){
+    float dxdx = 2 * (rot.x*rot.x + rot.w*rot.w) - 1.0f ;
+    float dxdy = 2 * (rot.x*rot.y - rot.z*rot.w) ;
+    float dxdz = 2 * (rot.x*rot.z + rot.y*rot.w) ;
 
-    p.x  = x.x + epsilon;
-    gradient.x = glm::dot(dedx, (dvec3(applyRotation(p,rot)) - xo)/epsilon );
-    p.x = x.x;
-    
-    p.y  = x.y + epsilon;
-    gradient.y = glm::dot(dedx, (dvec3(applyRotation(p,rot)) - xo)/epsilon );
-    p.y = x.y;
+    float dydx = 2 * (rot.y*rot.x + rot.z*rot.w) ;
+    float dydy = 2 * (rot.y*rot.y + rot.w*rot.w) - 1.0f ;
+    float dydz = 2 * (rot.y*rot.z - rot.x*rot.w) ;
 
-    p.z  = x.z + epsilon;
-    gradient.z = glm::dot(dedx, (dvec3(applyRotation(p,rot)) - xo)/epsilon );
-    p.z = x.z;
-    
-    return gradient ;
+    float dzdx = 2 * (rot.z*rot.x - rot.y*rot.w) ;
+    float dzdy = 2 * (rot.z*rot.y + rot.x*rot.w) ;
+    float dzdz = 2 * (rot.z*rot.z + rot.w*rot.w) - 1.0f ;
+
+    vec3 dedxin ;
+    dedxin.x = dxdx * dedx.x + dydx * dedx.y + dzdx * dedx.z ;
+    dedxin.y = dxdy * dedx.x + dydy * dedx.y + dzdy * dedx.z ;
+    dedxin.z = dxdz * dedx.x + dydz * dedx.y + dzdz * dedx.z ;
+
+    return dedxin;
 }
 
 // Returns the gradient of error about a given input
@@ -1485,7 +1481,7 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
             printf("target: %f, %f, %f\n", pin.target.x, pin.target.y, pin.target.z);
             return gradient ;
         }
-        dvec3 dedx =  transform * dvec4(diff,0.0) * 2.0f * pin.weight ;
+        vec3 dedx =  transform * dvec4(diff,0.0) * 2.0f * pin.weight ;
 
         //printf("Error: %f \n", error);
         //printf("dedx root: %f, %f, %f\n", dedx.x, dedx.y, dedx.z);
