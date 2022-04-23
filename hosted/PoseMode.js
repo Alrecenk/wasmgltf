@@ -43,7 +43,7 @@ class PoseMode extends ExecutionMode{
     // Called when the app should be redrawn
     // Note: the elements to draw onto or with should be included in the tools on construction and saved for the duration of the mode
     draw(){
-        if(renderer.xr_session){
+        if(tools.renderer.xr_session){
             return ;
         }
         tools.renderer.clearViewport();
@@ -57,8 +57,8 @@ class PoseMode extends ExecutionMode{
             tools.renderer.prepareBuffer(id, new_buffer_data[id]);
         }
         // Draw the models
-        tools.renderer.drawMeshes();
-		tools.renderer.finishFrame();
+        tools.renderer.drawMeshes(tools.renderer.gl);
+		tools.renderer.finishFrame(tools.renderer.gl);
     }
 
 
@@ -116,7 +116,7 @@ class PoseMode extends ExecutionMode{
         var scroll = event.wheelDelta ? -event.wheelDelta*.2 : event.detail*8; 
         // Adjust camera zoom by mouse wheel scroll.
 		this.camera_zoom *= Math.pow(1.005,scroll);
-        renderer.setZoom(this.camera_zoom) ;
+        tools.renderer.setZoom(this.camera_zoom) ;
     }
 
 	keyDownListener(event){
