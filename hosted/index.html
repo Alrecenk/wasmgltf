@@ -147,10 +147,7 @@ body {
 "use strict";
 const url_params = new URLSearchParams(window.location.search) ;
 var app; // The main app running on the CAD canvas
-var renderer ; // WebGl mesh_ renderer (mostly wraps C++ buffers)
-var current_mode ; // current execution mode
 var imports = url_params.get("import") ? url_params.get("import").split(',') : [];
-var buttons = {} ; // The canvas buttons on the UI canvas on top of the webGL canvas
 
 var tools  ; // a map containing several things above so execution modes can access them
 
@@ -162,9 +159,6 @@ function canvasApp() {
 
     var mouse_x, mouse_y, mouse_down_x, mouse_down_y ;
 
-    var last_time = new Date().getTime();
-	var frame = 0;
-	var framerate = 0;
 
 	function init() {
         // Add event listeners to the canvas or window as appropriate
@@ -185,54 +179,25 @@ function canvasApp() {
 
         //document.addEventListener('pointermove', pointerMove, true) ;
             
-		requestAnimationFrame(timeListener); // Timer at 60 hertz.
+	
+        window.setInterval(timeListener, 1000.0/60.0);
 	}
 
-    function draw() {
-
-        //Update FPS label
-        frame++;
-		if(frame >= 30){
-			var time = new Date().getTime();
-			framerate = (frame*1000/ (time-last_time));
-			last_time = time;
-			frame = 0 ;
-            buttons["fps_label"].text = "FPS:" + Math.round(framerate);
-        }
-        
-
-        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-        // Draw any buttons currently on the interface.
-		for (let button_name in buttons) {
-	        if (buttons.hasOwnProperty(button_name)) { // TODO is this really required?
-	        	buttons[button_name].draw(context);
-	        }
-        }
-
-        if(current_mode!=null){
-            current_mode.draw();
-        }
-}
-
     function timeListener(){
-        if(current_mode!=null){
-            current_mode.timer();
-        }
-        draw();
-        if(!renderer.xr_session){ // TODO don't link timer to animation frame (attaching to animation frame lags VR!)
-            requestAnimationFrame(timeListener);
+        if(tools.current_mode!=null){
+            tools.current_mode.timer();
         }
     }
 
 	function keyDownListener(evt) {
-        if(current_mode!=null){
-            current_mode.keyDownListener(evt);
+        if(tools.current_mode!=null){
+            tools.current_mode.keyDownListener(evt);
         }
 	}
 
 	function keyUpListener(evt) {
-        if(current_mode!=null){
-            current_mode.keyUpListener(evt);
+        if(tools.current_mode!=null){
+            tools.current_mode.keyUpListener(evt);
         }
     }
 
@@ -272,31 +237,36 @@ function canvasApp() {
  
 
 	function pointerDown(pointers) {
+
+        if(tools.renderer.xr_session != null){ // Kill XR session if interacting with canvas
+            tools.renderer.xr_session.end().then(tools.renderer.onXRSessionEnded);
+        }
+
 		mouse_down_x = pointers[0].x;
         mouse_down_y = pointers[0].y;
 
         // Buttons are executed in mouse up, this just prevents calling underlying mode when clicking a button.
         let pressed_button = false;
-        for (let button_name in buttons) {
-            if (buttons.hasOwnProperty(button_name)) {
-                var b = buttons[button_name];
+        for (let button_name in tools.buttons) {
+            if (tools.buttons.hasOwnProperty(button_name)) {
+                var b = tools.buttons[button_name];
                 if( b.inside(mouse_down_x, mouse_down_y)){
                     pressed_button = true;
                 }
             }
         }
 
-        if(current_mode!=null && !pressed_button){
-            current_mode.pointerDown(pointers);
+        if(tools.current_mode!=null && !pressed_button){
+            tools.current_mode.pointerDown(pointers);
         }
 	}
 
 	function pointerUp(pointers) {
         // Execute buttons if it was clicked (mouse down and up on it)
         let pressed_button = false;
-        for (let button_name in buttons) {
-            if (buttons.hasOwnProperty(button_name)) {
-                var b = buttons[button_name];
+        for (let button_name in tools.buttons) {
+            if (tools.buttons.hasOwnProperty(button_name)) {
+                var b = tools.buttons[button_name];
                 if(b.inside(mouse_x, mouse_y) && b.inside(mouse_down_x, mouse_down_y)){
                     b.execute();
                     pressed_button = true;
@@ -304,8 +274,8 @@ function canvasApp() {
             }
         }
 
-       if(current_mode!=null && !pressed_button){
-            current_mode.pointerUp(pointers);
+        if(tools.current_mode!=null && !pressed_button){
+            tools.current_mode.pointerUp(pointers);
         }
 	}
 
@@ -316,14 +286,14 @@ function canvasApp() {
         }
         mouse_x = pointers[0].x;
 		mouse_y = pointers[0].y;
-        if(current_mode!=null){
-            current_mode.pointerMove(pointers);
+        if(tools.current_mode!=null){
+            tools.current_mode.pointerMove(pointers);
         }
     }
 
 	function mouseWheelListener(evt){
-        if(current_mode!=null){
-            current_mode.mouseWheelListener(evt);
+        if(tools.current_mode!=null){
+            tools.current_mode.mouseWheelListener(evt);
         }
 	}
 
@@ -334,12 +304,13 @@ function canvasApp() {
 
 // Switch main execution mode (expects mode to be an ExecutionMode)
 function switchExecutionMode(next_mode){
-    if(current_mode != null){
-        current_mode.exit(next_mode);
+    if(tools.current_mode != null){
+        tools.current_mode.exit(next_mode);
     }
-    var last_mode = current_mode ;
-    current_mode = next_mode ;
+    var last_mode = tools.current_mode ;
+    tools.current_mode = next_mode ;
     next_mode.enter(last_mode);
+
 }
 
 
@@ -351,21 +322,19 @@ function initializeModes(){
 }
 
 function setMainMenuButtons(){
-    buttons = {};
-    buttons["fps_label"] = new InterfaceButton(tools.canvas.width-80, 10, 80, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
-    buttons["enter_vr"] = new InterfaceButton(5, 10, 200, 40, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
-    buttons["next_animation"] = new InterfaceButton(5, 55, 200, 40, "Next Animation", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.API.call("nextAnimation");});
+    tools.buttons = {};
+    tools.buttons["fps_label"] = new InterfaceButton(tools.canvas.width-80, 10, 80, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
+    tools.buttons["enter_vr"] = new InterfaceButton(5, 10, 200, 40, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
+    tools.buttons["next_animation"] = new InterfaceButton(5, 55, 200, 40, "Next Animation", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.API.call("nextAnimation");});
     
-    buttons["scan_mode"] = new InterfaceButton(5, 100, 200, 40, "View Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.scan_mode) ;});
-    buttons["pose_mode"] = new InterfaceButton(5, 145, 200, 40, "Pose Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.pose_mode) ;});
+    tools.buttons["scan_mode"] = new InterfaceButton(5, 100, 200, 40, "View Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.scan_mode) ;});
+    tools.buttons["pose_mode"] = new InterfaceButton(5, 145, 200, 40, "Pose Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.pose_mode) ;});
 
-    tools.buttons = buttons ;
 }
 
 function onBodyLoad(){
-    renderer = new Renderer("webgl", "ui", "shader-fs", "shader-vs", 100);
     tools = {};
-    tools.renderer = renderer;
+    tools.renderer = new Renderer("webgl", "ui", "shader-fs", "shader-vs", 100);
     tools.canvas = document.getElementById("ui"); ;
 
     // Wait for the WASM module to finish loading before booting up the socket and app
@@ -389,14 +358,7 @@ function loadGLBFile() {
             let params = {};
             params.data = load_data;
             let m = tools.API.call("setModel", params, new Serializer()) ;
-            /*
-            current_mode.camera_zoom = m.size*2.5;
-            current_mode.camera_focus = m.center ;
-            tools.renderer.setZoom(current_mode.camera_zoom);
-            tools.renderer.startRotate(current_mode.camera_focus, {x:500.0,y:500.0});
-            tools.renderer.continueRotate({x:500.0,y:501.0});
-            tools.renderer.setZoom(current_mode.camera_zoom);
-            */
+            tools.renderer.setMatrixUniforms();
         }
     }
 
