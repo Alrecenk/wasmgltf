@@ -42,23 +42,19 @@ class PoseMode extends ExecutionMode{
 
     // Called when the app should be redrawn
     // Note: the elements to draw onto or with should be included in the tools on construction and saved for the duration of the mode
-    draw(){
-        if(tools.renderer.xr_session){
-            return ;
-        }
-        tools.renderer.clearViewport();
+    drawFrame(frame_id){
         // Get any mesh updates pending in the module
-
-        let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
-        if(new_buffer_data && Object.keys(new_buffer_data).length > 0 && "material" in new_buffer_data[0]){
-            tools.renderer.clearBuffers();
-        }
-        for(let id in new_buffer_data){
-            tools.renderer.prepareBuffer(id, new_buffer_data[id]);
+        if(frame_id == 0){
+            let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
+            if(new_buffer_data && Object.keys(new_buffer_data).length > 0 && "material" in new_buffer_data[0]){
+                tools.renderer.clearBuffers();
+            }
+            for(let id in new_buffer_data){
+                tools.renderer.prepareBuffer(id, new_buffer_data[id]);
+            }
         }
         // Draw the models
-        tools.renderer.drawMeshes(tools.renderer.gl);
-		tools.renderer.finishFrame(tools.renderer.gl);
+        tools.renderer.drawMeshes();
     }
 
 

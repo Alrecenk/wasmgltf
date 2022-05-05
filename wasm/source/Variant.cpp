@@ -966,7 +966,11 @@ std::pair<Variant,int> Variant::parseJSONValue(const std::string& json, int valu
 
 void Variant::printFormatted() const{
     std::string s = this->toString() ;
-    Variant::printJSON(s);
+    if(type_ != Variant::OBJECT){
+        printf("%s\n", s.c_str());
+    }else{
+        Variant::printJSON(s);
+    }
 }
 
 void Variant::printJSON(const std::string& json){
