@@ -146,15 +146,6 @@ class Renderer{
         this.gl.uniformMatrix4fv(this.shaderProgram.mvMatrixUniform, false, this.mvMatrix);
     }
 
-    // Clear the viewport
-    clearViewport(){
-        let gl = this.gl ;
-        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-        gl.clearColor(this.bgColor[0]/255.0, this.bgColor[1]/255.0, this.bgColor[2]/255.0, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        
-    }
-
     static onFrame(){
 
         var r = tools.renderer ;
@@ -179,8 +170,14 @@ class Renderer{
             }
         }
 
-        if(tools.current_mode != null){
-            tools.current_mode.draw();
+        if(tools.current_mode){
+            let gl = r.gl ;
+            gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+            gl.clearColor(r.bgColor[0]/255.0, r.bgColor[1]/255.0, r.bgColor[2]/255.0, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            tools.renderer.setMatrixUniforms();
+            tools.current_mode.drawFrame(0);
+            gl.finish();
         }
         if(!r.xr_session){ // Stop drawing regular frames when VR sessions is entered
             requestAnimationFrame(Renderer.onFrame);
@@ -247,8 +244,6 @@ class Renderer{
 
         this.setLightPosition([this.camera_pos[0], this.camera_pos[1] , this.camera_pos[2]]);
 
-        this.setMatrixUniforms();
-
     }
 
     moveCamera(move){
@@ -256,7 +251,6 @@ class Renderer{
         this.camera_pos[0] += move[0];
         this.camera_pos[1] += move[1];
         this.camera_pos[2] += move[2];
-        this.setMatrixUniforms();
     }
 
     setZoom(zoom, ground_height){
@@ -290,10 +284,6 @@ class Renderer{
         for(let id in this.buffers){
             this.drawModel(this.buffers[id]);
         }
-    }
-
-    finishFrame(){
-        this.gl.finish();
     }
 
     // Given a 3D point return the point on the canvas it would be on
@@ -520,10 +510,6 @@ class Renderer{
 
         tools.renderer.xr_session = session;
 
-        if(tools.current_mode != null){
-            tools.current_mode.draw();
-        }
-
         //xrButton.textContent = 'Exit VR';
 
         // Listen for the sessions 'end' event so we can respond if the user
@@ -561,7 +547,6 @@ class Renderer{
     onXRSessionEnded(event) {
         tools.renderer.xr_session = null;
         console.log("XR session ended.");
-        tools.renderer.setMatrixUniforms();
         requestAnimationFrame(Renderer.onFrame); // turn canvas rendering back on
     }
 
@@ -570,7 +555,7 @@ class Renderer{
     onXRFrame(time, frame) {
         tools.xr_frame = frame;
 
-        tools.current_mode.draw();
+        
 
         let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
         if(new_buffer_data && Object.keys(new_buffer_data).length > 0 && "material" in new_buffer_data[0]){
@@ -705,7 +690,7 @@ class Renderer{
 			gl.uniform3fv(tools.renderer.shaderProgram.light_point, [lp[0], lp[1], lp[2]]);
             //console.log(lp);
             
-
+            let frame_id = 0 ;
             for (let view of pose.views) {
                 let viewport = glLayer.getViewport(view);
                 gl.viewport(viewport.x, viewport.y,
@@ -723,8 +708,9 @@ class Renderer{
                 mat4.multiply(M,view.transform.inverse.matrix, tools.renderer.model_pose );
                 gl.uniformMatrix4fv(tools.renderer.shaderProgram.mvMatrixUniform, false, M);
                 //drawModel(gl, model);
-                tools.renderer.drawMeshes();
-                
+                //tools.renderer.drawMeshes();
+                tools.current_mode.drawFrame(frame_id);
+                /*
                 for (let inputSource of frame.session.inputSources) {
                     let targetRayPose = frame.getPose(inputSource.targetRaySpace, tools.renderer.xr_ref_space);
                     if(targetRayPose && inputSource.gripSpace){
@@ -737,7 +723,8 @@ class Renderer{
                         }
                     }
                 }
-                
+                */
+                frame_id++;
             }
 
         }
