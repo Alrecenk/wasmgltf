@@ -61,4 +61,8 @@ class ExecutionMode{
 	keyUpListener(event){
 
     }
+
+    vrInputSourcesUpdated(input_sources, frame){
+
+    }
 }

@@ -19,6 +19,8 @@ class ScanMode extends ExecutionMode{
     camera_zoom;
     camera_focus = [0,0,0];
 
+    axis_total = 0 ;
+
     // Tools is an object with string keys that may include things such as the canvas,
     // API WASM Module, an Interface manager, and/or a mesh manager for shared webGL functionality
     constructor(tools){
@@ -136,5 +138,70 @@ class ScanMode extends ExecutionMode{
 
 	keyUpListener(event){
 
+    }
+
+    vrInputSourcesUpdated(input_sources, frame){
+        let any_grab = false;
+        for (let inputSource of input_sources) {
+            let targetRayPose = frame.getPose(inputSource.targetRaySpace, tools.renderer.xr_ref_space);
+            if(targetRayPose && inputSource.gripSpace){
+                let grabbing = false; 
+                if(inputSource.gamepad){
+                    for(let button of inputSource.gamepad.buttons){
+                        grabbing = grabbing || button.pressed;
+                        //console.log(button);
+                    }
+                    
+                    for(let axis of inputSource.gamepad.axes){
+                        this.axis_total += axis ;
+                    }
+                }
+                any_grab = any_grab || grabbing ;
+                
+                let grip_pose = frame.getPose(inputSource.gripSpace, tools.renderer.xr_ref_space).transform.matrix;
+                // start of grab, fetch starting poses
+                if(grabbing && !this.grab_pose){
+                    //console.log(inputSource);
+                    this.grab_pose = mat4.create();
+                    this.grab_pose.set(grip_pose);
+                    this.grab_model_pose = mat4.create();
+                    this.grab_model_pose.set(tools.renderer.model_pose) ;
+                    this.grab_axis_total = this.axis_total ;
+                    //console.log("grabbed:");
+                    //console.log(renderer.grab_pose);
+                }
+                
+                if(grabbing){
+                    //console.log("gripping:");
+                    //console.log(grip_pose);
+
+
+                    let MP = mat4.create();
+
+                    
+
+                    let inv = mat4.create();
+                    mat4.invert(inv, this.grab_pose); // TODO cache at grab time
+
+                    mat4.multiply(MP,inv, MP);
+
+                    mat4.multiply(MP,grip_pose, MP);
+
+                    let scale = Math.pow(1.05, (this.axis_total - this.grab_axis_total)*0.3);
+                    mat4.scale(MP, MP,[scale,scale,scale]);
+                    
+                    
+                    mat4.multiply(tools.renderer.model_pose, MP, this.grab_model_pose);
+
+                    //console.log(renderer.model_pose);
+                    break ; // don't check next controllers
+                }
+                
+            }
+        }
+        if(!any_grab){// stopped grabbing, clear saved poses
+            this.grab_pose = null;
+            this.grab_model_pose = null;
+        }
     }
 }
