@@ -19,8 +19,6 @@ class Renderer{
     yOrbitSpeed=0.007;
     rotate_speed=0.01;
 
-    axis_total = 0 ; // TODO controls shouldnt be handled by renderer
-
     frame = 0 ;
     last_time = new Date().getTime();
     framerate = 0 ;
@@ -609,78 +607,15 @@ class Renderer{
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             
-
+            // Initialize a new model pose that is a shared position between the VR frames
             if(!tools.renderer.model_pose){
                 tools.renderer.model_pose = mat4.create();
                 mat4.identity(tools.renderer.model_pose);
                 mat4.translate(tools.renderer.model_pose, tools.renderer.model_pose,[0,0,-0.5]);
             }
 
-            let any_grab = false;
-            for (let inputSource of frame.session.inputSources) {
-                let targetRayPose = frame.getPose(inputSource.targetRaySpace, tools.renderer.xr_ref_space);
-                if(targetRayPose && inputSource.gripSpace){
-                    let grabbing = false; 
-                    if(inputSource.gamepad){
-                        for(let button of inputSource.gamepad.buttons){
-                            grabbing = grabbing || button.pressed;
-                            //console.log(button);
-                        }
-                        
-                        for(let axis of inputSource.gamepad.axes){
-                            tools.renderer.axis_total += axis ;
-                        }
-                    }
-                    any_grab = any_grab || grabbing ;
-                    
-                    let grip_pose = frame.getPose(inputSource.gripSpace, tools.renderer.xr_ref_space).transform.matrix;
-                    // start of grab, fetch starting poses
-                    if(grabbing && !tools.renderer.grab_pose){
-                        //console.log(inputSource);
-                        tools.renderer.grab_pose = mat4.create();
-                        tools.renderer.grab_pose.set(grip_pose);
-                        tools.renderer.grab_model_pose = mat4.create();
-                        tools.renderer.grab_model_pose.set(tools.renderer.model_pose) ;
-                        tools.renderer.grab_axis_total = tools.renderer.axis_total ;
-                        //console.log("grabbed:");
-                        //console.log(renderer.grab_pose);
-                    }
-                    
-                    if(grabbing){
-                        //console.log("gripping:");
-                        //console.log(grip_pose);
-
-
-                        let MP = mat4.create();
-
-                        
-
-                        let inv = mat4.create();
-                        mat4.invert(inv, tools.renderer.grab_pose); // TODO cache at grab time
-
-                        mat4.multiply(MP,inv, MP);
-
-                        mat4.multiply(MP,grip_pose, MP);
-
-                        let scale = Math.pow(1.05, (tools.renderer.axis_total - tools.renderer.grab_axis_total)*0.3);
-                        mat4.scale(MP, MP,[scale,scale,scale]);
-                        
-                        
-                        mat4.multiply(tools.renderer.model_pose, MP, tools.renderer.grab_model_pose);
-
-                        //console.log(renderer.model_pose);
-                        break ; // don't check next controllers
-                    }
-                    
-                }
-            }
-
-            if(!any_grab){// stopped grabbing, clear saved poses
-                tools.renderer.grab_pose = null;
-                tools.renderer.grab_model_pose = null;
-            }
-
-            
+            //Send VR controller data to the execution mode
+            tools.current_mode.vrInputSourcesUpdated(frame.session.inputSources, frame);
 
             // undo the model transformation for the light point so it doesn't move with the model
             let lp = vec4.fromValues(tools.renderer.light_point[0], tools.renderer.light_point[1], tools.renderer.light_point[2], 1);
@@ -726,15 +661,6 @@ class Renderer{
                 */
                 frame_id++;
             }
-
         }
-
-        /*
-         // if haven't exited VR
-           // Inform the session that we're ready for the next frame.
-           tools.renderer.xr_session.requestAnimationFrame(Renderer.onXRFrame);
-        }
-        */
-
     }
 }
