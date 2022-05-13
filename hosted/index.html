@@ -358,7 +358,6 @@ function loadGLBFile() {
             let params = {};
             params.data = load_data;
             let m = tools.API.call("setModel", params, new Serializer()) ;
-            tools.renderer.setMatrixUniforms();
         }
     }
 
