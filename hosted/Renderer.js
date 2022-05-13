@@ -140,12 +140,6 @@ class Renderer{
         this.shaderProgram.alpha_cutoff = gl.getUniformLocation(this.shaderProgram, "u_alpha_cutoff");
     }
 
-    // Push current matrices to the shader
-    setMatrixUniforms() {
-        this.gl.uniformMatrix4fv(this.shaderProgram.pMatrixUniform, false, this.pMatrix);
-        this.gl.uniformMatrix4fv(this.shaderProgram.mvMatrixUniform, false, this.mvMatrix);
-    }
-
     static onFrame(){
 
         var r = tools.renderer ;
@@ -175,7 +169,8 @@ class Renderer{
             gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
             gl.clearColor(r.bgColor[0]/255.0, r.bgColor[1]/255.0, r.bgColor[2]/255.0, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-            tools.renderer.setMatrixUniforms();
+            gl.uniformMatrix4fv(r.shaderProgram.pMatrixUniform, false, r.pMatrix);
+            gl.uniformMatrix4fv(r.shaderProgram.mvMatrixUniform, false, r.mvMatrix);
             tools.current_mode.drawFrame(0);
             gl.finish();
         }
@@ -453,7 +448,7 @@ class Renderer{
         this.buffers[id].ready = true;
     }
 
-    drawModel(buffer){
+    drawModel(buffer, bones = null){
         let gl = this.gl ;
         if(buffer.ready){
             let position_buffer = buffer.position;
@@ -475,8 +470,10 @@ class Renderer{
             gl.bindBuffer(gl.ARRAY_BUFFER, weights_buffer);
             gl.vertexAttribPointer(this.shaderProgram.weightsAttribute, weights_buffer.itemSize, gl.FLOAT, false, 0, 0);
 
-
-            if(buffer.bones){
+            if(!bones){
+                bones = buffer.bones ;
+            }
+            if(bones){
                 var bone_tex = gl.createTexture();
                 gl.bindTexture(gl.TEXTURE_2D, bone_tex);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -484,7 +481,7 @@ class Renderer{
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
                 
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 32, 32, 0, gl.RGBA, gl.FLOAT, buffer.bones);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 32, 32, 0, gl.RGBA, gl.FLOAT, bones);
     
                 gl.activeTexture(gl.TEXTURE0 + 1);
                 gl.bindTexture(gl.TEXTURE_2D, bone_tex);
@@ -573,17 +570,6 @@ class Renderer{
       // Called every time the XRSession requests that a new frame be drawn.
     onXRFrame(time, frame) {
         tools.xr_frame = frame;
-
-        
-
-        let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
-        if(new_buffer_data && Object.keys(new_buffer_data).length > 0 && "material" in new_buffer_data[0]){
-            tools.renderer.clearBuffers();
-        }
-        for(let id in new_buffer_data){
-            tools.renderer.prepareBuffer(id, new_buffer_data[id]);
-        }
-
         
         // console.log(time);
         let session = frame.session;
