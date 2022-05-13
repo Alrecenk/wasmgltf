@@ -21,11 +21,14 @@ class ScanMode extends ExecutionMode{
 
     axis_total = 0 ;
 
+    model_pose = null;
+
     // Tools is an object with string keys that may include things such as the canvas,
     // API WASM Module, an Interface manager, and/or a mesh manager for shared webGL functionality
     constructor(tools){
         super(tools) ;
-
+        this.model_pose = mat4.create();
+        mat4.identity(this.model_pose);
     }
 
     // Called when the mode is becoming active (previous mode will have already exited)
@@ -48,15 +51,23 @@ class ScanMode extends ExecutionMode{
         // Get any mesh updates pending in the module
         if(frame_id == 0){
             let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
-            /*if(new_buffer_data && Object.keys(new_buffer_data).length > 0 && "material" in new_buffer_data[0]){
-                tools.renderer.clearBuffers();
-            }*/
             for(let id in new_buffer_data){
                 tools.renderer.prepareBuffer(id, new_buffer_data[id]);
             }
         }
         // Draw the models
-        tools.renderer.drawMeshes();
+        //tools.renderer.drawMesh("MAIN", this.model_pose);
+        
+        for(let dz = -1; dz <=1; dz++){
+        for(let dy = -1; dy <=1; dy++){
+            for(let dx = -1; dx <=1; dx++){
+                let M = mat4.create();
+                mat4.translate(M, this.model_pose,[dx*1.5,dy*1.5,dz*1.5]);
+                tools.renderer.drawMesh("MAIN", M);
+            }
+        }
+        }
+        
     }
 
 
@@ -165,7 +176,7 @@ class ScanMode extends ExecutionMode{
                     this.grab_pose = mat4.create();
                     this.grab_pose.set(grip_pose);
                     this.grab_model_pose = mat4.create();
-                    this.grab_model_pose.set(tools.renderer.model_pose) ;
+                    this.grab_model_pose.set(this.model_pose) ;
                     this.grab_axis_total = this.axis_total ;
                     //console.log("grabbed:");
                     //console.log(renderer.grab_pose);
@@ -191,7 +202,7 @@ class ScanMode extends ExecutionMode{
                     mat4.scale(MP, MP,[scale,scale,scale]);
                     
                     
-                    mat4.multiply(tools.renderer.model_pose, MP, this.grab_model_pose);
+                    mat4.multiply(this.model_pose, MP, this.grab_model_pose);
 
                     //console.log(renderer.model_pose);
                     break ; // don't check next controllers
