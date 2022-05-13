@@ -23,6 +23,8 @@ class Renderer{
     last_time = new Date().getTime();
     framerate = 0 ;
 
+    next_texture_id=2 ;
+
     
     // Performs the set-up for openGL canvas and shaders on construction
     constructor(webgl_canvas_id, ui_canvas_id , fragment_shader_id, vertex_shader_id, space_underneath_app){
@@ -420,8 +422,8 @@ class Renderer{
 
 
                 //console.log(buffer_data.materials);
-                this.buffers[id].texture_id = parseInt(id) +2; // TODO would conflict if more than one gltf at a time
-
+                this.buffers[id].texture_id = this.next_texture_id; // TODO would conflict if more than one gltf at a time
+                this.next_texture_id++;
                 //console.log("binding Texture id: " + this.buffers[id].texture_id + " \n");
                 gl.activeTexture(gl.TEXTURE0 + this.buffers[id].texture_id );
                 gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].texture );
@@ -431,6 +433,8 @@ class Renderer{
         }
 
         if(buffer_data.bones){
+            this.buffers[id].bones = buffer_data.bones ;
+            /*
             var bone_tex = gl.createTexture();
             gl.bindTexture(gl.TEXTURE_2D, bone_tex);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -443,6 +447,7 @@ class Renderer{
             gl.activeTexture(gl.TEXTURE0 + 1);
             gl.bindTexture(gl.TEXTURE_2D, bone_tex);
             gl.uniform1i(this.shaderProgram.bones_texture, 1);
+            */
         }
 
         this.buffers[id].ready = true;
@@ -469,6 +474,22 @@ class Renderer{
             gl.vertexAttribPointer(this.shaderProgram.jointsAttribute, joints_buffer.itemSize, gl.FLOAT, false, 0, 0);
             gl.bindBuffer(gl.ARRAY_BUFFER, weights_buffer);
             gl.vertexAttribPointer(this.shaderProgram.weightsAttribute, weights_buffer.itemSize, gl.FLOAT, false, 0, 0);
+
+
+            if(buffer.bones){
+                var bone_tex = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, bone_tex);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 32, 32, 0, gl.RGBA, gl.FLOAT, buffer.bones);
+    
+                gl.activeTexture(gl.TEXTURE0 + 1);
+                gl.bindTexture(gl.TEXTURE_2D, bone_tex);
+                gl.uniform1i(this.shaderProgram.bones_texture, 1);
+            }
 
             if(buffer.texture_id >= 0){
                 //console.log("Drawing texture for index " + (buffer.texture_id) +"\n");

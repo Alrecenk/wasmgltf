@@ -48,9 +48,9 @@ class ScanMode extends ExecutionMode{
         // Get any mesh updates pending in the module
         if(frame_id == 0){
             let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
-            if(new_buffer_data && Object.keys(new_buffer_data).length > 0 && "material" in new_buffer_data[0]){
+            /*if(new_buffer_data && Object.keys(new_buffer_data).length > 0 && "material" in new_buffer_data[0]){
                 tools.renderer.clearBuffers();
-            }
+            }*/
             for(let id in new_buffer_data){
                 tools.renderer.prepareBuffer(id, new_buffer_data[id]);
             }
