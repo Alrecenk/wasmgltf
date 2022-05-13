@@ -170,7 +170,6 @@ class Renderer{
             gl.clearColor(r.bgColor[0]/255.0, r.bgColor[1]/255.0, r.bgColor[2]/255.0, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             gl.uniformMatrix4fv(r.shaderProgram.pMatrixUniform, false, r.pMatrix);
-            gl.uniformMatrix4fv(r.shaderProgram.mvMatrixUniform, false, r.mvMatrix);
             tools.current_mode.drawFrame(0);
             gl.finish();
         }
@@ -273,12 +272,6 @@ class Renderer{
     setLightPosition(light_point){
         this.gl.uniform3fv(this.shaderProgram.light_point, light_point);
         this.light_point = light_point ;
-    }
-
-    drawMeshes(){
-        for(let id in this.buffers){
-            this.drawModel(this.buffers[id]);
-        }
     }
 
     // Given a 3D point return the point on the canvas it would be on
@@ -429,6 +422,7 @@ class Renderer{
 
         if(buffer_data.bones){
             this.buffers[id].bones = buffer_data.bones ;
+            this.buffers[id].bones_changed = true;
             /*
             var bone_tex = gl.createTexture();
             gl.bindTexture(gl.TEXTURE_2D, bone_tex);
@@ -449,6 +443,7 @@ class Renderer{
     }
 
     drawModel(buffer, bones = null){
+        //console.log(buffer);
         let gl = this.gl ;
         if(buffer.ready){
             let position_buffer = buffer.position;
@@ -470,8 +465,9 @@ class Renderer{
             gl.bindBuffer(gl.ARRAY_BUFFER, weights_buffer);
             gl.vertexAttribPointer(this.shaderProgram.weightsAttribute, weights_buffer.itemSize, gl.FLOAT, false, 0, 0);
 
-            if(!bones){
+            if(!bones && buffer.bones_changed){
                 bones = buffer.bones ;
+                buffer.bones_changed = false;
             }
             if(bones){
                 var bone_tex = gl.createTexture();
@@ -509,6 +505,23 @@ class Renderer{
             }
 
             gl.drawArrays(gl.TRIANGLES, 0, position_buffer.numItems);
+        }
+    }
+
+    drawMesh(mesh_name, transform = null, bones = null){
+        if(!transform){
+            transform = mat4.create();
+            mat4.identity(transform);
+        }
+        let M = mat4.create();
+        mat4.multiply(M,this.mvMatrix, transform);
+        this.gl.uniformMatrix4fv(this.shaderProgram.mvMatrixUniform, false, M);
+        for(let buffer_name in this.buffers){
+            //console.log(buffer_name);
+            //console.log(buffer_name.substring(0,mesh_name.length));
+            if(buffer_name.substring(0,mesh_name.length) == mesh_name){
+                this.drawModel(this.buffers[buffer_name],bones);
+            }
         }
     }
 
@@ -614,16 +627,12 @@ class Renderer{
 
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             
-            // Initialize a new model pose that is a shared position between the VR frames
-            if(!tools.renderer.model_pose){
-                tools.renderer.model_pose = mat4.create();
-                mat4.identity(tools.renderer.model_pose);
-                mat4.translate(tools.renderer.model_pose, tools.renderer.model_pose,[0,0,-0.5]);
-            }
+            
 
             //Send VR controller data to the execution mode
             tools.current_mode.vrInputSourcesUpdated(frame.session.inputSources, frame);
 
+            /*
             // undo the model transformation for the light point so it doesn't move with the model
             let lp = vec4.fromValues(tools.renderer.light_point[0], tools.renderer.light_point[1], tools.renderer.light_point[2], 1);
             let L = mat4.create();
@@ -631,6 +640,7 @@ class Renderer{
             vec4.transformMat4(lp, lp, L);
 			gl.uniform3fv(tools.renderer.shaderProgram.light_point, [lp[0], lp[1], lp[2]]);
             //console.log(lp);
+            */
             
             let frame_id = 0 ;
             for (let view of pose.views) {
@@ -646,11 +656,11 @@ class Renderer{
 
                 gl.uniformMatrix4fv(tools.renderer.shaderProgram.pMatrixUniform, false, view.projectionMatrix);
 
-                let M = mat4.create();
-                mat4.multiply(M,view.transform.inverse.matrix, tools.renderer.model_pose );
-                gl.uniformMatrix4fv(tools.renderer.shaderProgram.mvMatrixUniform, false, M);
+                //let M = mat4.create();
+                //mat4.multiply(M,view.transform.inverse.matrix, tools.renderer.model_pose );
+                //gl.uniformMatrix4fv(tools.renderer.shaderProgram.mvMatrixUniform, false, M);
+                tools.renderer.mvMatrix = view.transform.inverse.matrix ;
                 //drawModel(gl, model);
-                //tools.renderer.drawMeshes();
                 tools.current_mode.drawFrame(frame_id);
                 /*
                 for (let inputSource of frame.session.inputSources) {

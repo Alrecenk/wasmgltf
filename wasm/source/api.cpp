@@ -77,9 +77,6 @@ void setPacketPointer(byte* p){
 // Expects an object with vertices and faces
 byte* setModel(byte* ptr){
     string select = MAIN_MODEL;
-    if(meshes[select].vertices.size() > 0){
-        select = "another_model";
-    }
     GLTF& model = meshes[select];
 
     auto start_time = now();
@@ -127,14 +124,6 @@ byte* getUpdatedBuffers(byte* ptr){
                 animation_start_time = now();
             }
         meshes[MAIN_MODEL].animate(animation,time);
-    }
-    if(meshes["another_model"].vertices.size() > 0 && meshes["another_model"].animations.size() > 0){
-        auto& animation = meshes["another_model"].animations[0];
-        float time = millisBetween(animation_start_time, now()) / 1000.0f;
-            while(time > animation.duration){
-                time -=  animation.duration;
-            }
-        meshes["another_model"].animate(animation,time);
     }
 
     map<string,Variant> buffers;
