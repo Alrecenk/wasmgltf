@@ -558,7 +558,7 @@ class Renderer{
     onXRSessionEnded(event) {
         tools.renderer.xr_session = null;
         console.log("XR session ended.");
-        requestAnimationFrame(Renderer.onFrame); // turn canvas rendering back on
+        //requestAnimationFrame(Renderer.onFrame); // turn canvas rendering back on
     }
 
 
