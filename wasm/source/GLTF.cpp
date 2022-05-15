@@ -955,8 +955,6 @@ void GLTF::addAnimation(Variant& animation_json, Variant& json, const Variant& b
 
 // Compacts the given vertices and sets the model to them
 void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Triangle>& triangles){
-    
-    printf("set model internal called\n");
     this->vertices = vertices;
     this->triangles = triangles;
 
@@ -1038,6 +1036,47 @@ vec3 GLTF::getNormal(Triangle t){
     vec3 AB = this->vertices[t.B].position - this->vertices[t.A].position;
     vec3 AC = this->vertices[t.C].position - this->vertices[t.A].position;
     return glm::normalize(glm::cross(AB,AC));
+}
+
+void GLTF::setTetraModel(glm::vec3 center, float size){
+
+    Vertex A, B, C, D ;
+    A.position = vec3(center[0] + size ,center[1] + size, center[2]-size);
+    A.weights = vec4(1,0,0,0);
+    A.color_mult = vec3(0,0,0) ;
+    B.position = vec3(center[0] - size,center[1] + size,center[2]-size);
+    B.color_mult = vec3(1,0,0) ;
+    B.weights = vec4(1,0,0,0);
+    C.position = vec3(center[0], center[1] - size, center[2]-size);
+    C.color_mult = vec3(0,1,0) ;
+    C.weights = vec4(1,0,0,0);
+    D.position = vec3(center[0], center[1], center[2] + size);
+    D.color_mult = vec3(0,0,1) ;
+    D.weights = vec4(1,0,0,0);
+
+    vector<Vertex> v ;
+    v.push_back(A);
+    v.push_back(B);
+    v.push_back(C);
+    v.push_back(D);
+
+    vector<Triangle> t;
+    t.push_back({1,0,2,0});
+    t.push_back({3,1,2,0});
+    t.push_back({0,3,2,0});
+    t.push_back({0,1,3,0});
+    
+    Material m ;
+    materials[0] = m;
+    transform = mat4(1);
+    nodes =  vector<Node>();
+    Node n ;
+    n.transform = mat4(1);
+    nodes.push_back(n);
+    root_nodes = vector<int>();
+    root_nodes.push_back(0);
+
+    setModel(v, t);
 }
 
 // Given a ray in model space (p + v*t) return the t value of the nearest collision
