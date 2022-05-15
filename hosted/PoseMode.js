@@ -25,6 +25,8 @@ class PoseMode extends ExecutionMode{
 
     hand_pose = [mat4.create(),mat4.create()] ;
 
+    pin = null;
+
     // Tools is an object with string keys that may include things such as the canvas,
     // API WASM Module, an Interface manager, and/or a mesh manager for shared webGL functionality
     constructor(tools){
@@ -178,9 +180,8 @@ class PoseMode extends ExecutionMode{
                 
                 
                 let grip_pose = frame.getPose(inputSource.gripSpace, tools.renderer.xr_ref_space).transform.matrix;
-                if(which_hand != pose_hand){ // TODO remove freeze hand to make sure button press registers
-                    this.hand_pose[which_hand] = grip_pose;
-                }
+                this.hand_pose[which_hand] = grip_pose;
+                
                 
 
                 if(grab_hand == which_hand){
@@ -202,6 +203,27 @@ class PoseMode extends ExecutionMode{
                     mat4.multiply(this.model_pose, MP, this.grab_model_pose);
 
                 }
+
+                if(pose_hand == which_hand){
+                    let params = {};
+                    params.name = "vr_pose";
+                    //console.log(grip_pose);
+                    let gpos = vec4.fromValues(0.0, 0.0, 0.0, 1.0);
+                    let inv = mat4.create();
+                    mat4.invert(inv,this.model_pose);
+                    let MP = mat4.create();
+                    mat4.multiply(MP,inv, grip_pose);
+                    vec4.transformMat4(gpos, gpos, MP);// move global position into model space
+                    //console.log(gpos[0] +", " + gpos[1] +", " + gpos[2]);
+                    params.p = new Float32Array([gpos[0], gpos[1], gpos[2]]);
+                    if(!this.pin){
+                        this.pin = params.name; // create pin from current point
+                        tools.API.call("createPin", params, new Serializer()); 
+                    }else{
+                        tools.API.call("setPinTarget", params, new Serializer()); 
+                    }
+
+                }
                 
             }
             which_hand++;
@@ -211,6 +233,11 @@ class PoseMode extends ExecutionMode{
         if(grab_hand < 0){// stopped grabbing, clear saved poses
             this.grab_pose = null;
             this.grab_model_pose = null;
+        }
+        if(pose_hand < 0 && this.pin){
+            let params = {name:this.pin} ;
+            tools.API.call("deletePin", params, new Serializer()); 
+            this.pin = null ;
         }
     }
 }

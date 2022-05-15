@@ -200,6 +200,9 @@ class GLTF : public OptimizationProblem{
         // return negative if no collision
         float rayTrace(const glm::vec3 &p, const glm::vec3 &v);
 
+        // Returns the index of the closest vertex to the given point
+        int getClosestVertex(const glm::vec3 &p);
+
         // Sets transforms to the given enimation 
         // Does not change transforms unaffected by snimation, does not apply transforms to vertices
         void animate(Animation& animation, float time);
