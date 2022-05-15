@@ -140,6 +140,9 @@ class GLTF : public OptimizationProblem{
         // Compacts the given vertices and sets the model to them
         void setModel(const std::vector<Vertex>& vertices, const std::vector<Triangle>& triangles);
 
+        // Sets the model to a single tetrahedron (can be used as a placeholder or for debugging without a model)
+        void setTetraModel(glm::vec3 center, float size);
+
         void addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
             Variant& primitive, int node_id, const glm::mat4& transform, Variant& json, const Variant& bin);
 

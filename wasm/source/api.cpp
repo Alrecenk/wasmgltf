@@ -109,6 +109,8 @@ byte* setModel(byte* ptr){
     int millis = millisBetween(start_time, now());
     printf("Total model load time: %d ms\n", millis);
 
+    //model.setTetraModel(vec3(0,0,0), 0.5);
+
     return pack(ret_map);
 }
 
