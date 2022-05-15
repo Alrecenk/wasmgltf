@@ -420,25 +420,7 @@ class Renderer{
             }
         }
 
-        if(buffer_data.bones){
-            this.buffers[id].bones = buffer_data.bones ;
-            this.buffers[id].bones_changed = true;
-            /*
-            var bone_tex = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, bone_tex);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-            
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 32, 32, 0, gl.RGBA, gl.FLOAT, buffer_data.bones);
-
-            gl.activeTexture(gl.TEXTURE0 + 1);
-            gl.bindTexture(gl.TEXTURE_2D, bone_tex);
-            gl.uniform1i(this.shaderProgram.bones_texture, 1);
-            */
-        }
-
+        this.buffers[id].bones = buffer_data.bones ;
         this.buffers[id].ready = true;
     }
 
@@ -465,9 +447,8 @@ class Renderer{
             gl.bindBuffer(gl.ARRAY_BUFFER, weights_buffer);
             gl.vertexAttribPointer(this.shaderProgram.weightsAttribute, weights_buffer.itemSize, gl.FLOAT, false, 0, 0);
 
-            if(!bones && buffer.bones_changed){
+            if(!bones){
                 bones = buffer.bones ;
-                buffer.bones_changed = false;
             }
             if(bones){
                 var bone_tex = gl.createTexture();
@@ -526,7 +507,8 @@ class Renderer{
     }
 
     startXRSession(){
-        if(tools.renderer.xr_session == null){
+        if(tools.renderer.xr_session == null && !this.started_vr){
+            this.started_vr = true ;
             navigator.xr.requestSession('immersive-vr').then(tools.renderer.onXRSessionStarted);
         }
     }

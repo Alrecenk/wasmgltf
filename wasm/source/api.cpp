@@ -23,6 +23,7 @@ using glm::mat4;
 // Outermost API holds a global reference to the core data model
 map<string,GLTF> meshes;
 const string MAIN_MODEL = "MAIN" ;
+const string HAND = "HAND";
 
 Variant ret ; // A long lived variant used to hold data being returned to webassembly
 byte* packet_ptr ; // location ofr data passed as function parameters and returns
@@ -109,7 +110,8 @@ byte* setModel(byte* ptr){
     int millis = millisBetween(start_time, now());
     printf("Total model load time: %d ms\n", millis);
 
-    //model.setTetraModel(vec3(0,0,0), 0.5);
+    GLTF& hand_model = meshes[HAND];
+    hand_model.setTetraModel(vec3(0,0,0), 0.025);
 
     return pack(ret_map);
 }

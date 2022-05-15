@@ -23,6 +23,8 @@ class PoseMode extends ExecutionMode{
 
     model_pose = null;
 
+    hand_pose = [mat4.create(),mat4.create()] ;
+
     // Tools is an object with string keys that may include things such as the canvas,
     // API WASM Module, an Interface manager, and/or a mesh manager for shared webGL functionality
     constructor(tools){
@@ -30,6 +32,9 @@ class PoseMode extends ExecutionMode{
         this.model_pose = mat4.create();
         mat4.identity(this.model_pose);
 
+        mat4.translate(this.hand_pose[0], this.model_pose,[2.5,1.5,0]);
+        mat4.translate(this.hand_pose[1], this.model_pose,[-2.5,1.5,0]);
+        
     }
 
     // Called when the mode is becoming active (previous mode will have already exited)
@@ -58,6 +63,9 @@ class PoseMode extends ExecutionMode{
         }
         // Draw the models
         tools.renderer.drawMesh("MAIN", this.model_pose);
+        tools.renderer.drawMesh("HAND", this.hand_pose[0]);
+        tools.renderer.drawMesh("HAND", this.hand_pose[1]);
+
     }
 
 
@@ -139,6 +147,7 @@ class PoseMode extends ExecutionMode{
     
     vrInputSourcesUpdated(input_sources, frame){
         let any_grab = false;
+        let which_hand = 0 ;
         for (let inputSource of input_sources) {
             let targetRayPose = frame.getPose(inputSource.targetRaySpace, tools.renderer.xr_ref_space);
             if(targetRayPose && inputSource.gripSpace){
@@ -156,6 +165,7 @@ class PoseMode extends ExecutionMode{
                 any_grab = any_grab || grabbing ;
                 
                 let grip_pose = frame.getPose(inputSource.gripSpace, tools.renderer.xr_ref_space).transform.matrix;
+                this.hand_pose[which_hand] = grip_pose;
                 // start of grab, fetch starting poses
                 if(grabbing && !this.grab_pose){
                     //console.log(inputSource);
@@ -195,6 +205,7 @@ class PoseMode extends ExecutionMode{
                 }
                 
             }
+            which_hand++;
         }
         if(!any_grab){// stopped grabbing, clear saved poses
             this.grab_pose = null;
