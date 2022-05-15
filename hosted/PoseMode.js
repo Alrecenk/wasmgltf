@@ -25,6 +25,8 @@ class PoseMode extends ExecutionMode{
 
     hand_pose = [mat4.create(),mat4.create()] ;
 
+    pin = null;
+
     // Tools is an object with string keys that may include things such as the canvas,
     // API WASM Module, an Interface manager, and/or a mesh manager for shared webGL functionality
     constructor(tools){
@@ -146,70 +148,96 @@ class PoseMode extends ExecutionMode{
     }
     
     vrInputSourcesUpdated(input_sources, frame){
-        let any_grab = false;
         let which_hand = 0 ;
+        let GRIP = 2 ;
+        let TRIGGER = 1 ;
+        let pose_hand = -1 ;
+        let grab_hand = -1 ;
         for (let inputSource of input_sources) {
             let targetRayPose = frame.getPose(inputSource.targetRaySpace, tools.renderer.xr_ref_space);
+
             if(targetRayPose && inputSource.gripSpace){
-                let grabbing = false; 
-                if(inputSource.gamepad){
+                if(inputSource.gamepad){                    
+                    let which_button = 0 ;
                     for(let button of inputSource.gamepad.buttons){
-                        grabbing = grabbing || button.pressed;
-                        //console.log(button);
+                        which_button++;
+                        if(button.pressed){
+                            //console.log("button pressed " + which_button);
+                            if(which_button == GRIP && grab_hand < 0){
+                                grab_hand = which_hand;
+                            }
+                            if(which_button == TRIGGER && pose_hand < 0){
+                                pose_hand = which_hand ;
+                            }
+                        }
                     }
                     
+
                     for(let axis of inputSource.gamepad.axes){
                         this.axis_total += axis ;
                     }
                 }
-                any_grab = any_grab || grabbing ;
+                
                 
                 let grip_pose = frame.getPose(inputSource.gripSpace, tools.renderer.xr_ref_space).transform.matrix;
                 this.hand_pose[which_hand] = grip_pose;
-                // start of grab, fetch starting poses
-                if(grabbing && !this.grab_pose){
-                    //console.log(inputSource);
-                    this.grab_pose = mat4.create();
-                    this.grab_pose.set(grip_pose);
-                    this.grab_model_pose = mat4.create();
-                    this.grab_model_pose.set(this.model_pose) ;
-                    this.grab_axis_total = this.axis_total ;
-                    //console.log("grabbed:");
-                    //console.log(renderer.grab_pose);
-                }
                 
-                if(grabbing){
-                    //console.log("gripping:");
-                    //console.log(grip_pose);
+                
 
+                if(grab_hand == which_hand){
+                    if(!this.grab_pose){ // start of grab, fetch starting poses
+                        this.grab_pose = mat4.create();
+                        this.grab_pose.set(grip_pose);
+                        this.grab_model_pose = mat4.create();
+                        this.grab_model_pose.set(this.model_pose) ;
+                        this.grab_axis_total = this.axis_total ;
+                    }
 
                     let MP = mat4.create();
-
-                    
-
                     let inv = mat4.create();
                     mat4.invert(inv, this.grab_pose); // TODO cache at grab time
-
                     mat4.multiply(MP,inv, MP);
-
                     mat4.multiply(MP,grip_pose, MP);
-
                     let scale = Math.pow(1.05, (this.axis_total - this.grab_axis_total)*0.3);
                     mat4.scale(MP, MP,[scale,scale,scale]);
-                    
-                    
                     mat4.multiply(this.model_pose, MP, this.grab_model_pose);
 
-                    //console.log(renderer.model_pose);
-                    break ; // don't check next controllers
+                }
+
+                if(pose_hand == which_hand){
+                    let params = {};
+                    params.name = "vr_pose";
+                    //console.log(grip_pose);
+                    let gpos = vec4.fromValues(0.0, 0.0, 0.0, 1.0);
+                    let inv = mat4.create();
+                    mat4.invert(inv,this.model_pose);
+                    let MP = mat4.create();
+                    mat4.multiply(MP,inv, grip_pose);
+                    vec4.transformMat4(gpos, gpos, MP);// move global position into model space
+                    //console.log(gpos[0] +", " + gpos[1] +", " + gpos[2]);
+                    params.p = new Float32Array([gpos[0], gpos[1], gpos[2]]);
+                    if(!this.pin){
+                        this.pin = params.name; // create pin from current point
+                        tools.API.call("createPin", params, new Serializer()); 
+                    }else{
+                        tools.API.call("setPinTarget", params, new Serializer()); 
+                    }
+
                 }
                 
             }
             which_hand++;
         }
-        if(!any_grab){// stopped grabbing, clear saved poses
+
+
+        if(grab_hand < 0){// stopped grabbing, clear saved poses
             this.grab_pose = null;
             this.grab_model_pose = null;
+        }
+        if(pose_hand < 0 && this.pin){
+            let params = {name:this.pin} ;
+            tools.API.call("deletePin", params, new Serializer()); 
+            this.pin = null ;
         }
     }
 }

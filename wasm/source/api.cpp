@@ -243,47 +243,58 @@ byte* distributeTableNetworkData(byte* data_ptr) {
 byte* createPin(byte* ptr) {
     auto obj = Variant::deserializeObject(ptr);
     vec3 p = obj["p"].getVec3() ;
-    vec3 v = obj["v"].getVec3();
     string name = obj["name"].getString();
     GLTF& model = meshes[MAIN_MODEL];
     model.applyTransforms(); // Get current animated coordinates on CPU
-    float t = model.rayTrace(p, v);
-
-    if(model.last_traced_tri != -1){
-        GLTF::Triangle tri = model.triangles[model.last_traced_tri];        
-        GLTF::Vertex& vert = model.vertices[tri.A];
-        glm::ivec4 joints = vert.joints;
-        float max_w = -1.0f ;
-        int bone = -1;
-        for(int k=0;k<4;k++){
-            float w = vert.weights[k] ;
-            if(w > max_w){
-                max_w = w ;
-                bone = vert.joints[k] ;
-            }
+    int vertex_index = -1 ;
+    vec3 global ;
+    if(obj["v"].defined()){ // we're making the pin from a ray
+        vec3 v = obj["v"].getVec3();
+        float t = model.rayTrace(p, v);
+        if(model.last_traced_tri != -1){
+            GLTF::Triangle tri = model.triangles[model.last_traced_tri]; 
+            vertex_index = tri.A;
         }
-        //TODO make pin
-        vec3 global = p + v * t;
-        vec3 mesh_space =   glm::inverse(model.nodes[bone].transform) * vec4(global,1) ;
-        vec3 local = model.nodes[bone].mesh_to_bone * vec4(mesh_space,1) ; // TODO
-
-        model.createPin(name, bone, local, 1.0f);
-
-        /*
-        printf("global: %f, %f, %f\n", global.x, global.y, global.z);
-        printf("actual: %f, %f, %f\n", actual.x, actual.y, actual.z);
-        printf("Mesh: %f, %f, %f\n", mesh_space.x, mesh_space.y, mesh_space.z);
-        printf("Local: %f, %f, %f\n", local.x, local.y, local.z);
-        printf("Vert: %f, %f, %f\n", vert.position.x, vert.position.y, vert.position.z);
-        printf("Vert Transformed: %f, %f, %f\n", vert.transformed_position.x, vert.transformed_position.y, vert.transformed_position.z);
-        
-
-        double error = model.error(model.getX());
-        printf("Error: %f\n", error);
-
-        printf("Pin '%s' created for %s.\n" , name.c_str(), model.nodes[bone].name.c_str());
-        */
+        global = p + v * t;
+    }else{
+        vertex_index = model.getClosestVertex(p);
+        global = p ;
     }
+    if(vertex_index < 0){
+        return emptyReturn();
+    }
+
+    GLTF::Vertex& vert = model.vertices[vertex_index];
+    glm::ivec4 joints = vert.joints;
+    float max_w = -1.0f ;
+    int bone = -1;
+    for(int k=0;k<4;k++){
+        float w = vert.weights[k] ;
+        if(w > max_w){
+            max_w = w ;
+            bone = vert.joints[k] ;
+        }
+    }
+
+    vec3 mesh_space =   glm::inverse(model.nodes[bone].transform) * vec4(global,1) ;
+    vec3 local = model.nodes[bone].mesh_to_bone * vec4(mesh_space,1) ;
+
+    model.createPin(name, bone, local, 1.0f);
+    model.applyPins();
+    
+    printf("global: %f, %f, %f\n", global.x, global.y, global.z);
+    //printf("actual: %f, %f, %f\n", actual.x, actual.y, actual.z);
+    printf("Mesh: %f, %f, %f\n", mesh_space.x, mesh_space.y, mesh_space.z);
+    printf("Local: %f, %f, %f\n", local.x, local.y, local.z);
+    printf("Vert: %f, %f, %f\n", vert.position.x, vert.position.y, vert.position.z);
+    printf("Vert Transformed: %f, %f, %f\n", vert.transformed_position.x, vert.transformed_position.y, vert.transformed_position.z);
+    
+
+    double error = model.error(model.getX());
+    printf("Error: %f\n", error);
+
+    printf("Pin '%s' created for %s.\n" , name.c_str(), model.nodes[bone].name.c_str());
+    
 
     return emptyReturn();
 
@@ -293,14 +304,20 @@ byte* setPinTarget(byte* ptr) {
 
     auto obj = Variant::deserializeObject(ptr);
     vec3 p = obj["p"].getVec3() ;
-    vec3 v = obj["v"].getVec3();
+    
     string name = obj["name"].getString();
     GLTF& model = meshes[MAIN_MODEL];
-    GLTF::Pin& pin = model.pins[name] ;
-    vec3 current = model.nodes[pin.bone].transform * ( model.nodes[pin.bone].bone_to_mesh * vec4(pin.local_point,1));
+    vec3 target ;
+    if(obj["v"].defined()){ // if fiven a ray
+        vec3 v = obj["v"].getVec3();
+        GLTF::Pin& pin = model.pins[name] ;
+        vec3 current = model.nodes[pin.bone].transform * ( model.nodes[pin.bone].bone_to_mesh * vec4(pin.local_point,1));
+        // Pull toward the closest point on the mouse ray
+        target = p + v * (glm::dot(current-p, v) / glm::dot(v,v)) ;
+    }else{
+        target = p ; // no ray, target is point given
+    }
 
-    // Pull toward the closest point on the mouse ray
-    vec3 target = p + v * (glm::dot(current-p, v) / glm::dot(v,v)) ;
     //printf("Pulling %s to (%f, %f, %f).\n", name.c_str(), target.x, target.y, target.z);
     model.setPinTarget(name, target);
 

@@ -1129,6 +1129,23 @@ float GLTF::rayTrace(const vec3 &p, const vec3 &v){
     }return -1;
 }
 
+// Returns the index of the closest vertex to the given point
+int GLTF::getClosestVertex(const glm::vec3 &p){
+    int best = 0;
+    vec3 diff = p-vertices[0].transformed_position;
+    float best_dist = glm::dot(diff, diff);
+    for(int k=1;k<vertices.size();k++){
+        diff = p-vertices[k].transformed_position;
+        float dist = glm::dot(diff, diff);
+        if(dist < best_dist){
+            best_dist = dist ;
+            best = k ;
+        }
+    }
+
+    return best ;
+}
+
 // Computes node transform matrices from their components and nesting
 void GLTF::computeNodeMatrices(int node_id, const glm::mat4& transform){
     Node& node = nodes[node_id];
@@ -1339,13 +1356,15 @@ void GLTF::setPinTarget(std::string name, glm::vec3 target){
 
 // delete pin
 void GLTF::deletePin(std::string name){
-    pins.erase(name);
+    if(pins.find(name) != pins.end()){
+        pins.erase(name);
+    }
 }
 
 // run inverse kinematics on model to bones to attemp to satisfy pin constraints
 void GLTF::applyPins(){
     vector<float> x0 = getX() ;
-    vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.0001, 2) ;
+    vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.00001, 1) ;
     setX(xf);
     computeNodeMatrices();
 }
