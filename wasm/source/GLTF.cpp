@@ -1365,7 +1365,7 @@ void GLTF::deletePin(std::string name){
 void GLTF::applyPins(){
     vector<float> x0 = getX() ;
     //vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.0001, 1) ;
-    vector<float> xf = OptimizationProblem::minimizeByLBFGS(x0, 2, 2, 10, 0.0001, 0.00001);
+    vector<float> xf = OptimizationProblem::minimizeByLBFGS(x0, 2, 2, 50, 0.00001, 0.000001);
     setX(xf);
     computeNodeMatrices();
 }
