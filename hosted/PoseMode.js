@@ -209,21 +209,40 @@ class PoseMode extends ExecutionMode{
 
                 if(pose_hand == which_hand){
                     let params = {};
-                    params.name = "vr_pose";
-                    //console.log(grip_pose);
-                    let gpos = vec4.fromValues(0.0, 0.0, 0.0, 1.0);
+                    
                     let inv = mat4.create();
                     mat4.invert(inv,this.model_pose);
                     let MP = mat4.create();
                     mat4.multiply(MP,inv, input_source.grip_pose);
-                    vec4.transformMat4(gpos, gpos, MP);// move global position into model space
-                    //console.log(gpos[0] +", " + gpos[1] +", " + gpos[2]);
-                    params.p = new Float32Array([gpos[0], gpos[1], gpos[2]]);
+
+
+                    //console.log(grip_pose);
+                    let gpos = [
+                        vec4.fromValues(0.025, 0.025, -0.025, 1.0),
+                        vec4.fromValues(-0.025, 0.025, -.025, 1.0),
+                        vec4.fromValues(0, -0.025, -0.025, 1.0),
+                        vec4.fromValues(0, 0, 0.025, 1.0)
+                    ];
+
+                    
+                    let creating = false;
                     if(!this.pin){
-                        this.pin = params.name; // create pin from current point
-                        tools.API.call("createPin", params, new Serializer()); 
-                    }else{
-                        tools.API.call("setPinTarget", params, new Serializer()); 
+                        this.pin = [];
+                        creating = true ;
+                    }
+                    for(let g = 0; g < gpos.length;g++){
+
+                        params.name = "vr_pose" + g;
+                    
+                        vec4.transformMat4(gpos[g], gpos[g], MP);// move global position into model space
+                        //console.log(gpos[0] +", " + gpos[1] +", " + gpos[2]);
+                        params.p = new Float32Array([gpos[g][0], gpos[g][1], gpos[g][2]]);
+                        if(creating){
+                            this.pin.push(params.name); // create pin from current point
+                            tools.API.call("createPin", params, new Serializer()); 
+                        }else{
+                            tools.API.call("setPinTarget", params, new Serializer()); 
+                        }
                     }
 
                 }
@@ -238,8 +257,10 @@ class PoseMode extends ExecutionMode{
             this.grab_model_pose = null;
         }
         if(pose_hand < 0 && this.pin){
-            let params = {name:this.pin} ;
-            tools.API.call("deletePin", params, new Serializer()); 
+            for(let name of this.pin){
+                let params = {name:name} ;
+                tools.API.call("deletePin", params, new Serializer()); 
+            }
             this.pin = null ;
         }
     }
