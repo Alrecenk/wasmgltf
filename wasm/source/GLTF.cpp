@@ -1364,7 +1364,8 @@ void GLTF::deletePin(std::string name){
 // run inverse kinematics on model to bones to attemp to satisfy pin constraints
 void GLTF::applyPins(){
     vector<float> x0 = getX() ;
-    vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.0001, 2) ;
+    //vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.0001, 1) ;
+    vector<float> xf = OptimizationProblem::minimizeByLBFGS(x0, 2, 2, 10, 0.0001, 0.00001);
     setX(xf);
     computeNodeMatrices();
 }
