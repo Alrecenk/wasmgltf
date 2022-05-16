@@ -25,6 +25,9 @@ class Renderer{
 
     next_texture_id=2 ;
 
+    xr_input = [];
+    has_new_xr_input = false;
+
     
     // Performs the set-up for openGL canvas and shaders on construction
     constructor(webgl_canvas_id, ui_canvas_id , fragment_shader_id, vertex_shader_id, space_underneath_app){
@@ -599,67 +602,62 @@ class Renderer{
             // If we do have a valid pose, bind the WebGL layer's framebuffer,
             // which is where any content to be displayed on the XRDevice must be
             // rendered.
-            gl.bindFramebuffer(gl.FRAMEBUFFER, glLayer.framebuffer);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, glLayer.framebuffer); // TODO do we need to do this every frame?
 
             // Clear the framebuffer
             gl.clearColor(tools.renderer.bgColor[0]/255.0, tools.renderer.bgColor[1]/255.0, tools.renderer.bgColor[2]/255.0, 1.0);
             gl.enable(gl.DEPTH_TEST);
             gl.enable(gl.CULL_FACE);
             gl.cullFace(gl.BACK);
-
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-            
-            
-
-            //Send VR controller data to the execution mode
-            tools.current_mode.vrInputSourcesUpdated(frame.session.inputSources, frame);
-
-            /*
-            // undo the model transformation for the light point so it doesn't move with the model
-            let lp = vec4.fromValues(tools.renderer.light_point[0], tools.renderer.light_point[1], tools.renderer.light_point[2], 1);
-            let L = mat4.create();
-            mat4.invert(L, tools.renderer.model_pose);
-            vec4.transformMat4(lp, lp, L);
-			gl.uniform3fv(tools.renderer.shaderProgram.light_point, [lp[0], lp[1], lp[2]]);
-            //console.log(lp);
-            */
             
             let frame_id = 0 ;
             for (let view of pose.views) {
                 let viewport = glLayer.getViewport(view);
                 gl.viewport(viewport.x, viewport.y,
                             viewport.width, viewport.height);
-                //console.log("View matrix:");
-                //console.log(view.transform.inverse.matrix);
-
-                // Draw a scene using view.projectionMatrix as the projection matrix
-                // and view.transform to position the virtual camera. If you need a
-                // view matrix, use view.transform.inverse.matrix.
 
                 gl.uniformMatrix4fv(tools.renderer.shaderProgram.pMatrixUniform, false, view.projectionMatrix);
 
-                //let M = mat4.create();
-                //mat4.multiply(M,view.transform.inverse.matrix, tools.renderer.model_pose );
-                //gl.uniformMatrix4fv(tools.renderer.shaderProgram.mvMatrixUniform, false, M);
                 tools.renderer.mvMatrix = view.transform.inverse.matrix ;
-                //drawModel(gl, model);
                 tools.current_mode.drawFrame(frame_id);
-                /*
-                for (let inputSource of frame.session.inputSources) {
-                    let targetRayPose = frame.getPose(inputSource.targetRaySpace, tools.renderer.xr_ref_space);
-                    if(targetRayPose && inputSource.gripSpace){
-                        let gripPose = frame.getPose(inputSource.gripSpace, tools.renderer.xr_ref_space);
-                        if (gripPose) {
-                            let G = mat4.create();
-                            mat4.multiply(G,view.transform.inverse.matrix, gripPose.transform.matrix );
-                            gl.uniformMatrix4fv(tools.renderer.shaderProgram.mvMatrixUniform, false, G);
-                            //drawModel(gl, grip_cursor);
-                        }
-                    }
-                }
-                */
+
                 frame_id++;
             }
+
+            //Send VR controller data to the execution mode
+            tools.renderer.captureXRInput(frame.session.inputSources, frame);
+            //tools.current_mode.vrInputSourcesUpdated(frame.session.inputSources, frame);
         }
+    }
+
+    captureXRInput(input_sources, frame){
+        tools.renderer.xr_input = [];
+        for (let inputSource of input_sources) {
+            let this_input = {};
+            this_input.ray_pose = frame.getPose(inputSource.targetRaySpace, tools.renderer.xr_ref_space).transform.matrix;
+            if(this_input.ray_pose && inputSource.gripSpace){
+                if(inputSource.gamepad){
+                    this_input.buttons=[];
+                    for(let button of inputSource.gamepad.buttons){
+                        this_input.buttons.push({pressed:button.pressed, touched:button.touched, value:button.value});
+                        if(button.pressed){
+                            console.log("pressed a button!");
+                            console.log(this_input.buttons[this_input.buttons.length-1]);
+                        }
+                    }
+                    
+                    this_input.axes = [];
+                    for(let axis of inputSource.gamepad.axes){
+                        this_input.axes.push(axis);
+                    }
+                }
+                
+                
+                this_input.grip_pose = frame.getPose(inputSource.gripSpace, tools.renderer.xr_ref_space).transform.matrix;
+                tools.renderer.xr_input.push(this_input);
+            }
+        }
+        tools.renderer.has_new_xr_input = true;
     }
 }

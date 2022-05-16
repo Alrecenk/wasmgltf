@@ -150,63 +150,45 @@ class ScanMode extends ExecutionMode{
 
     }
 
-    vrInputSourcesUpdated(input_sources, frame){
+    vrInputSourcesUpdated(xr_input){
         let any_grab = false;
-        for (let inputSource of input_sources) {
-            let targetRayPose = frame.getPose(inputSource.targetRaySpace, tools.renderer.xr_ref_space);
-            if(targetRayPose && inputSource.gripSpace){
+        //console.log(xr_input);
+        for (let input_source of xr_input) {
+            if(input_source.grip_pose){
                 let grabbing = false; 
-                if(inputSource.gamepad){
-                    for(let button of inputSource.gamepad.buttons){
-                        grabbing = grabbing || button.pressed;
-                        //console.log(button);
-                    }
-                    
-                    for(let axis of inputSource.gamepad.axes){
-                        this.axis_total += axis ;
+                for(let button of input_source.buttons){
+                    grabbing = grabbing || button.pressed;
+                    if(button.pressed){
+                        console.log("scanmode saw button press!");
+                        console.log(button);
                     }
                 }
+                for(let axis of input_source.axes){
+                    this.axis_total += axis ;
+                }
+            
                 any_grab = any_grab || grabbing ;
                 
-                let grip_pose = frame.getPose(inputSource.gripSpace, tools.renderer.xr_ref_space).transform.matrix;
                 // start of grab, fetch starting poses
                 if(grabbing && !this.grab_pose){
-                    //console.log(inputSource);
                     this.grab_pose = mat4.create();
-                    this.grab_pose.set(grip_pose);
+                    this.grab_pose.set(input_source.grip_pose);
                     this.grab_model_pose = mat4.create();
                     this.grab_model_pose.set(this.model_pose) ;
                     this.grab_axis_total = this.axis_total ;
-                    //console.log("grabbed:");
-                    //console.log(renderer.grab_pose);
                 }
                 
                 if(grabbing){
-                    //console.log("gripping:");
-                    //console.log(grip_pose);
-
-
                     let MP = mat4.create();
-
-                    
-
                     let inv = mat4.create();
                     mat4.invert(inv, this.grab_pose); // TODO cache at grab time
-
                     mat4.multiply(MP,inv, MP);
-
-                    mat4.multiply(MP,grip_pose, MP);
-
+                    mat4.multiply(MP,input_source.grip_pose, MP);
                     let scale = Math.pow(1.05, (this.axis_total - this.grab_axis_total)*0.3);
                     mat4.scale(MP, MP,[scale,scale,scale]);
-                    
-                    
                     mat4.multiply(this.model_pose, MP, this.grab_model_pose);
-
-                    //console.log(renderer.model_pose);
                     break ; // don't check next controllers
                 }
-                
             }
         }
         if(!any_grab){// stopped grabbing, clear saved poses
