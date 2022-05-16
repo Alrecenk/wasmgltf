@@ -281,7 +281,7 @@ byte* createPin(byte* ptr) {
 
     model.createPin(name, bone, local, 1.0f);
     model.applyPins();
-    
+    /*
     printf("global: %f, %f, %f\n", global.x, global.y, global.z);
     //printf("actual: %f, %f, %f\n", actual.x, actual.y, actual.z);
     printf("Mesh: %f, %f, %f\n", mesh_space.x, mesh_space.y, mesh_space.z);
@@ -294,7 +294,7 @@ byte* createPin(byte* ptr) {
     printf("Error: %f\n", error);
 
     printf("Pin '%s' created for %s.\n" , name.c_str(), model.nodes[bone].name.c_str());
-    
+    */
 
     return emptyReturn();
 

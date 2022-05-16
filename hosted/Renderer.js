@@ -635,16 +635,13 @@ class Renderer{
         tools.renderer.xr_input = [];
         for (let inputSource of input_sources) {
             let this_input = {};
-            this_input.ray_pose = frame.getPose(inputSource.targetRaySpace, tools.renderer.xr_ref_space).transform.matrix;
-            if(this_input.ray_pose && inputSource.gripSpace){
+            let ray_pose = frame.getPose(inputSource.targetRaySpace, tools.renderer.xr_ref_space);
+            if(ray_pose && inputSource.gripSpace){
+                this_input.ray_pose = ray_pose.transform.matrix;
                 if(inputSource.gamepad){
                     this_input.buttons=[];
                     for(let button of inputSource.gamepad.buttons){
                         this_input.buttons.push({pressed:button.pressed, touched:button.touched, value:button.value});
-                        if(button.pressed){
-                            console.log("pressed a button!");
-                            console.log(this_input.buttons[this_input.buttons.length-1]);
-                        }
                     }
                     
                     this_input.axes = [];
