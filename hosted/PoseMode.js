@@ -147,47 +147,50 @@ class PoseMode extends ExecutionMode{
 
     }
     
-    vrInputSourcesUpdated(input_sources, frame){
+    vrInputSourcesUpdated(xr_input){
         let which_hand = 0 ;
-        let GRIP = 2 ;
-        let TRIGGER = 1 ;
+        let GRIP = 1 ;
+        let TRIGGER = 0 ;
         let pose_hand = -1 ;
         let grab_hand = -1 ;
-        for (let inputSource of input_sources) {
-            let targetRayPose = frame.getPose(inputSource.targetRaySpace, tools.renderer.xr_ref_space);
-
-            if(targetRayPose && inputSource.gripSpace){
-                if(inputSource.gamepad){                    
-                    let which_button = 0 ;
-                    for(let button of inputSource.gamepad.buttons){
-                        which_button++;
-                        if(button.pressed){
-                            //console.log("button pressed " + which_button);
-                            if(which_button == GRIP && grab_hand < 0){
-                                grab_hand = which_hand;
-                            }
-                            if(which_button == TRIGGER && pose_hand < 0){
-                                pose_hand = which_hand ;
-                            }
+        for (let input_source of xr_input) {
+            if(input_source.grip_pose){
+                if(input_source.buttons[GRIP].pressed  && grab_hand < 0){
+                    grab_hand = which_hand;
+                }
+                if(input_source.buttons[TRIGGER].pressed && pose_hand < 0){
+                    pose_hand = which_hand ;
+                }
+                /*
+                for(let button of input_source.buttons){
+                    which_button++;
+                    if(button.pressed){
+                        //console.log("button pressed " + which_button);
+                        if(which_button == GRIP && grab_hand < 0){
+                            grab_hand = which_hand;
+                        }
+                        if(which_button == TRIGGER && pose_hand < 0){
+                            pose_hand = which_hand ;
                         }
                     }
-                    
+                }*/
+                
 
-                    for(let axis of inputSource.gamepad.axes){
-                        this.axis_total += axis ;
-                    }
+                for(let axis of input_source.axes){
+                    this.axis_total += axis ;
                 }
                 
                 
-                let grip_pose = frame.getPose(inputSource.gripSpace, tools.renderer.xr_ref_space).transform.matrix;
-                this.hand_pose[which_hand] = grip_pose;
+                
+                //let grip_pose = frame.getPose(inputSource.gripSpace, tools.renderer.xr_ref_space).transform.matrix;
+                this.hand_pose[which_hand] = input_source.grip_pose;
                 
                 
 
                 if(grab_hand == which_hand){
                     if(!this.grab_pose){ // start of grab, fetch starting poses
                         this.grab_pose = mat4.create();
-                        this.grab_pose.set(grip_pose);
+                        this.grab_pose.set(input_source.grip_pose);
                         this.grab_model_pose = mat4.create();
                         this.grab_model_pose.set(this.model_pose) ;
                         this.grab_axis_total = this.axis_total ;
@@ -197,7 +200,7 @@ class PoseMode extends ExecutionMode{
                     let inv = mat4.create();
                     mat4.invert(inv, this.grab_pose); // TODO cache at grab time
                     mat4.multiply(MP,inv, MP);
-                    mat4.multiply(MP,grip_pose, MP);
+                    mat4.multiply(MP,input_source.grip_pose, MP);
                     let scale = Math.pow(1.05, (this.axis_total - this.grab_axis_total)*0.3);
                     mat4.scale(MP, MP,[scale,scale,scale]);
                     mat4.multiply(this.model_pose, MP, this.grab_model_pose);
@@ -212,7 +215,7 @@ class PoseMode extends ExecutionMode{
                     let inv = mat4.create();
                     mat4.invert(inv,this.model_pose);
                     let MP = mat4.create();
-                    mat4.multiply(MP,inv, grip_pose);
+                    mat4.multiply(MP,inv, input_source.grip_pose);
                     vec4.transformMat4(gpos, gpos, MP);// move global position into model space
                     //console.log(gpos[0] +", " + gpos[1] +", " + gpos[2]);
                     params.p = new Float32Array([gpos[0], gpos[1], gpos[2]]);

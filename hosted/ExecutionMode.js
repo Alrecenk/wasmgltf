@@ -62,7 +62,7 @@ class ExecutionMode{
 
     }
 
-    vrInputSourcesUpdated(input_sources, frame){
+    vrInputSourcesUpdated(xr_input){
 
     }
 }

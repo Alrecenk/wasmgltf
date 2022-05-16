@@ -180,12 +180,17 @@ function canvasApp() {
         //document.addEventListener('pointermove', pointerMove, true) ;
             
 	
-        window.setInterval(timeListener, 1000.0/60.0);
+        window.setInterval(timeListener, 1000.0/120.0);
 	}
 
     function timeListener(){
         if(tools.current_mode!=null){
+            if(tools.renderer.has_new_xr_input){
+                tools.current_mode.vrInputSourcesUpdated(tools.renderer.xr_input);
+                tools.renderer.has_new_xr_input = false;
+            }
             tools.current_mode.timer();
+            
         }
     }
 
