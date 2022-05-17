@@ -26,7 +26,6 @@ body {
 </style>
 
 <script type="text/javascript" src="gl-matrix-min.js"></script>
-<script type="text/javascript" src="webgl-utils.js"></script>
 <script type="text/javascript" src="Renderer.js"></script>
 <script type="text/javascript" src="InterfaceButton.js"></script>
 <script type="text/javascript" src="ExecutionMode.js"></script>
@@ -34,6 +33,7 @@ body {
 <script type="text/javascript" src="Serializer.js"></script>
 <script type="text/javascript" src="ScanMode.js"></script>
 <script type="text/javascript" src="PoseMode.js"></script>
+<script type="text/javascript" src="AvatarMode.js"></script>
 
 <script id="shader-fs" type="x-shader/x-fragment">#version 300 es
     // A simple fragment shader with a single point light
@@ -323,6 +323,7 @@ function initializeModes(){
     tools.modes = {} ;
     tools.modes.scan_mode = new ScanMode(tools);
     tools.modes.pose_mode = new PoseMode(tools);
+    tools.modes.avatar_mode = new AvatarMode(tools);
     switchExecutionMode(tools.modes.scan_mode) ;
 }
 
@@ -334,6 +335,7 @@ function setMainMenuButtons(){
     
     tools.buttons["scan_mode"] = new InterfaceButton(5, 100, 200, 40, "View Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.scan_mode) ;});
     tools.buttons["pose_mode"] = new InterfaceButton(5, 145, 200, 40, "Pose Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.pose_mode) ;});
+    tools.buttons["avatar_mode"] = new InterfaceButton(5, 190, 200, 40, "Avatar Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.avatar_mode) ;});
 
 }
 

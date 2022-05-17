@@ -509,6 +509,14 @@ class Renderer{
         }
     }
 
+    setMeshDoubleSided(mesh_name, double_sided){
+        for(let buffer_name in this.buffers){
+            if(buffer_name.substring(0,mesh_name.length) == mesh_name){
+                this.buffers[buffer_name].double_sided = double_sided
+            }
+        }
+    }
+
     startXRSession(){
         if(tools.renderer.xr_session == null && !this.started_vr){
             this.started_vr = true ;

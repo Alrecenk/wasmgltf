@@ -85,7 +85,7 @@ class ScanMode extends ExecutionMode{
         }else{
 
             let ray = tools.renderer.getRay([this.mouse_down_x,this.mouse_down_y]);
-            tools.API.call("scan", ray, new Serializer()); 
+            console.log(tools.API.call("scan", ray, new Serializer())); 
             
             
             

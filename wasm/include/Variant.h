@@ -222,6 +222,10 @@ This function detects what type came in and converts it to a 32 bit float */
     static uint32_t murmur(const uint8_t* key, size_t len, uint32_t seed);
 
     static inline uint32_t murmurscramble(uint32_t k);
+
+    void makeFillableIntArray(int size);
+
+    void makeFillableFloatArray(int size);
 };
 
 #endif // #ifndef _VARIANT_H_

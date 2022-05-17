@@ -1364,8 +1364,8 @@ void GLTF::deletePin(std::string name){
 // run inverse kinematics on model to bones to attemp to satisfy pin constraints
 void GLTF::applyPins(){
     vector<float> x0 = getX() ;
-    //vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0.0001, 1) ;
-    vector<float> xf = OptimizationProblem::minimizeByLBFGS(x0, 2, 2, 50, 0.00001, 0.000001);
+    vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0, 5) ;
+    //vector<float> xf = OptimizationProblem::minimizeByLBFGS(x0, 2, 2, 50, 0.00001, 0.000001);
     setX(xf);
     computeNodeMatrices();
 }
@@ -1565,4 +1565,15 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
     */
     //return numerical ;
     return gradient ;
+}
+
+glm::mat4 GLTF::getNodeTransform(std::string name){
+    computeNodeMatrices();
+    for(auto& n : nodes){
+        printf("%s\n",n.name.c_str());
+        if(n.name == name){
+            return n.transform;
+        }
+    }
+    return mat4(0);
 }

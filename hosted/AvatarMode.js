@@ -1,4 +1,4 @@
-class PoseMode extends ExecutionMode{
+class AvatarMode extends ExecutionMode{
     /* Input trackers. */
 
     // Mouse position
@@ -27,6 +27,12 @@ class PoseMode extends ExecutionMode{
 
     pin = null;
 
+    mirror_dist = 2;
+
+    head_pins = null
+    hand_pins = [null, null];
+
+
     // Tools is an object with string keys that may include things such as the canvas,
     // API WASM Module, an Interface manager, and/or a mesh manager for shared webGL functionality
     constructor(tools){
@@ -42,6 +48,8 @@ class PoseMode extends ExecutionMode{
     // Called when the mode is becoming active (previous mode will have already exited)
     enter(previous_mode){
         this.camera_zoom = tools.renderer.getZoom(0); 
+        this.model_pose = tools.API.call("getNodeTransform", {name:"Head"}, new Serializer()).transform ;
+        console.log(this.model_pose);
     }
 
     // Called when a mode is becoming inactive (prior to calling to enter on that mode)
@@ -63,11 +71,21 @@ class PoseMode extends ExecutionMode{
                 tools.renderer.prepareBuffer(id, new_buffer_data[id]);
             }
         }
-        // Draw the models
-        tools.renderer.drawMesh("MAIN", this.model_pose);
+        
+        // Draw the hands
         tools.renderer.drawMesh("HAND", this.hand_pose[0]);
         tools.renderer.drawMesh("HAND", this.hand_pose[1]);
 
+        // Draw the model
+        tools.renderer.setMeshDoubleSided("MAIN", false);
+        tools.renderer.drawMesh("MAIN", this.model_pose);
+
+        //Draw the mirror
+        tools.renderer.setMeshDoubleSided("MAIN", true);
+        let mirror = mat4.create();
+        mat4.scale(mirror, this.model_pose, vec3.fromValues(1,1,-1));
+        mat4.translate(mirror, mirror,[0,0,2]);
+        tools.renderer.drawMesh("MAIN", mirror);
     }
 
 
@@ -131,6 +149,7 @@ class PoseMode extends ExecutionMode{
 	keyDownListener(event){
 	    var key_code = event.keyCode || event.which;
         var character = String.fromCharCode(key_code); // This only works with letters. Use key-code directly for others.
+        //console.log(character);
     }
 
 	keyUpListener(event){
@@ -178,6 +197,7 @@ class PoseMode extends ExecutionMode{
                 
 
                 if(grab_hand == which_hand){
+                    
                     if(!this.grab_pose){ // start of grab, fetch starting poses
                         this.grab_pose = mat4.create();
                         this.grab_pose.set(input_source.grip_pose);
@@ -194,6 +214,7 @@ class PoseMode extends ExecutionMode{
                     let scale = Math.pow(1.05, (this.axis_total - this.grab_axis_total)*0.3);
                     mat4.scale(MP, MP,[scale,scale,scale]);
                     mat4.multiply(this.model_pose, MP, this.grab_model_pose);
+                    
 
                 }
 
