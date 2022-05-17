@@ -31,6 +31,7 @@ EXPORTED_FUNCTIONS =[\
 	'_createPin', \
 	'_deletePin', \
 	'_setPinTarget', \
+	'_getNodeTransform',\
 	'_free']
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp

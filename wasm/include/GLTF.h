@@ -235,6 +235,8 @@ class GLTF : public OptimizationProblem{
         // Returns the gradient of error about a given input
         std::vector<float> gradient(std::vector<float> x) override;
 
+        glm::mat4 getNodeTransform(std::string name);
+
     private:
         // Performs the duplicate work for the various get vertex buffer functions
         Variant getFloatBuffer(std::vector<glm::vec3>& ptr, int material);

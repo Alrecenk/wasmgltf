@@ -199,7 +199,7 @@ byte* scan(byte* ptr){
 
         printf("Texcoords: %f, %f\n" , v.tex_coord.x, v.tex_coord.y);
     }
-    return emptyReturn();
+    return pack(ret_map);
 }
 
 byte* nextAnimation(byte* ptr){
@@ -261,9 +261,9 @@ byte* createPin(byte* ptr) {
         global = p ;
     }
     if(vertex_index < 0){
+        model.computeNodeMatrices();
         return emptyReturn();
     }
-
     GLTF::Vertex& vert = model.vertices[vertex_index];
     glm::ivec4 joints = vert.joints;
     float max_w = -1.0f ;
@@ -333,6 +333,19 @@ byte* deletePin(byte* ptr) {
     model.deletePin(name);
     //printf("Pin '%s' deleted.\n" , name.c_str());
     return emptyReturn();
+}
+
+byte* getNodeTransform(byte* ptr) {
+    auto obj = Variant::deserializeObject(ptr);
+    string name = obj["name"].getString();
+    glm::mat4 m = meshes[MAIN_MODEL].getNodeTransform(name);
+    map<string, Variant> ret_map ;
+    ret_map["transform"].makeFillableFloatArray(16);
+    float* vm = ret_map["transform"].getFloatArray();
+    for(int k=0;k<16;k++){
+        vm[k] = *(((float*)&m)+k) ;
+    }
+    return pack(ret_map);
 }
 
 

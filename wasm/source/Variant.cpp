@@ -1078,3 +1078,21 @@ uint32_t Variant::murmur(const uint8_t* key, size_t len, uint32_t seed) {
     h ^= h >> 16;
     return h;
 }
+
+void Variant::makeFillableIntArray(int size){
+    if(type_ != NULL_VARIANT){
+        free(ptr);
+    }
+    type_ = Variant::INT_ARRAY ;
+    ptr = (byte*) malloc(4 * ( 1 + size)) ;
+    *(int*)(ptr) = size ;
+}
+
+void Variant::makeFillableFloatArray(int size){
+    if(type_ != NULL_VARIANT){
+        free(ptr);
+    }
+    type_ = Variant::FLOAT_ARRAY ;
+    ptr = (byte*) malloc(4 * ( 1 + size)) ;
+    *(int*)(ptr) = size ;
+}
