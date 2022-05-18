@@ -235,6 +235,8 @@ class GLTF : public OptimizationProblem{
         // Returns the gradient of error about a given input
         std::vector<float> gradient(std::vector<float> x) override;
 
+        void fixedSpeedIK(float speed);
+
         glm::mat4 getNodeTransform(std::string name);
 
     private:

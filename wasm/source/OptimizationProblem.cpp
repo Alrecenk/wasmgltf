@@ -110,7 +110,7 @@ std::vector<float> OptimizationProblem::minimumByGradientDescent(const std::vect
     while(dot(gradient,gradient) > tolerance*tolerance && iteration < maxiter){
         iteration++ ;
         //calculate step-size in direction of negative gradient
-        double alpha = stepSize(x, scale(gradient,-1), 1, 200, 0.1, 0.9) ;
+        double alpha = stepSize(x, scale(gradient,-1), 1, 50, 0.1, 0.9) ;
         x = add( x, scale(gradient, -alpha)) ; // apply step
         gradient = this->gradient(x) ; // get new gradient
     }
