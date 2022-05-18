@@ -1187,7 +1187,7 @@ void GLTF::computeInvMatrices(){
 void GLTF::setStiffnessByDepth(){
     for(int k=0;k<root_nodes.size();k++){
         setStiffnessByDepth(root_nodes[k], 1);
-        nodes[root_nodes[k]].stiffness = 1000;
+        nodes[root_nodes[k]].stiffness = 100000;
     } 
 }
 void GLTF::setStiffnessByDepth(int node_id, float stiffness){
@@ -1363,10 +1363,33 @@ void GLTF::deletePin(std::string name){
 
 // run inverse kinematics on model to bones to attemp to satisfy pin constraints
 void GLTF::applyPins(){
-    vector<float> x0 = getX() ;
-    vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0, 5) ;
+    
+    for(int k=0;k<10;k++){
+        fixedSpeedIK(0.00002);
+        fixedSpeedIK(0.00002);
+        fixedSpeedIK(0.00001);
+        fixedSpeedIK(0.00001);
+        vector<float> x0 = getX() ;
+        vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0, 3) ;
+        setX(xf);
+        float change = 0;
+        for(int k=0;k<x0.size();k++){
+            change += abs(x0[k]-xf[k]);
+        }
+        float err = error(xf);
+        //printf("error: %f change %f\n", err, change);
+        if(change < 0.01 && err > 0.000001){
+            fixedSpeedIK(0.0001);
+            fixedSpeedIK(0.0001);
+            fixedSpeedIK(0.00004);
+            fixedSpeedIK(0.00004);
+            // some fixed steps help the gradient descent get unstuck
+        }
+    }
+
     //vector<float> xf = OptimizationProblem::minimizeByLBFGS(x0, 2, 2, 50, 0.00001, 0.000001);
-    setX(xf);
+    //setX(xf);
+
     computeNodeMatrices();
 }
 
@@ -1565,6 +1588,29 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
     */
     //return numerical ;
     return gradient ;
+}
+
+void GLTF::fixedSpeedIK(float speed){
+    vector<float> x0 = getX() ;
+    vector<float> g = gradient(x0);
+
+    for(int node_id=0; node_id<nodes.size(); node_id++){   
+            Node& bone = nodes[node_id];
+            // gradient of rotation of this bone
+            //vec4 dedq = GLTF::dedq(xi[bi], bone.rotation, dedx) ;
+
+            vec4 gb = vec4(g[node_id*4], g[node_id*4+1], g[node_id*4+2],g[node_id*4+3]);
+            float m = glm::length(gb);
+            if(m > 0.001 && bone.stiffness <= 1){
+                gb = glm::normalize(gb);
+                gb *= speed; /*/bone.stiffness ;*/
+            }
+            bone.rotation.w -= gb[0];
+            bone.rotation.x -= gb[1];
+            bone.rotation.y -= gb[2];
+            bone.rotation.z -= gb[3];
+            bone.rotation = glm::normalize(bone.rotation);
+        }
 }
 
 glm::mat4 GLTF::getNodeTransform(std::string name){
