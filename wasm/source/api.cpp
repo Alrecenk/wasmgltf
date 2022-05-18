@@ -321,8 +321,13 @@ byte* setPinTarget(byte* ptr) {
     //printf("Pulling %s to (%f, %f, %f).\n", name.c_str(), target.x, target.y, target.z);
     model.setPinTarget(name, target);
 
-    model.applyPins();
+    //model.applyPins();
 
+    return emptyReturn();
+}
+
+byte* applyPins(byte* ptr){
+    meshes[MAIN_MODEL].applyPins();
     return emptyReturn();
 }
 

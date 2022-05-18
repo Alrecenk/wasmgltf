@@ -48,8 +48,6 @@ class AvatarMode extends ExecutionMode{
     // Called when the mode is becoming active (previous mode will have already exited)
     enter(previous_mode){
         this.camera_zoom = tools.renderer.getZoom(0); 
-        this.model_pose = tools.API.call("getNodeTransform", {name:"Head"}, new Serializer()).transform ;
-        console.log(this.model_pose);
     }
 
     // Called when a mode is becoming inactive (prior to calling to enter on that mode)
@@ -73,8 +71,11 @@ class AvatarMode extends ExecutionMode{
         }
         
         // Draw the hands
-        tools.renderer.drawMesh("HAND", this.hand_pose[0]);
-        tools.renderer.drawMesh("HAND", this.hand_pose[1]);
+        for(let h = 0 ; h < 2; h++){
+            if(!this.hand_pins[h]){
+                tools.renderer.drawMesh("HAND", this.hand_pose[h]);
+            }
+        }
 
         // Draw the model
         tools.renderer.setMeshDoubleSided("MAIN", false);
@@ -118,6 +119,7 @@ class AvatarMode extends ExecutionMode{
                 let ray = tools.renderer.getRay([this.mouse_x,this.mouse_y]);
                 ray.name = "drag";
                 tools.API.call("setPinTarget", ray, new Serializer()); 
+                tools.API.call("applyPins", {}, new Serializer()); 
 
             }else if(this.rotating){
                this.tools.renderer.continueRotate(pointers[0]);
@@ -157,6 +159,34 @@ class AvatarMode extends ExecutionMode{
     }
     
     vrInputSourcesUpdated(xr_input){
+
+        if(this.head_pins == null){
+            /*
+            let head_transform = tools.API.call("getNodeTransform", {name:"Head"}, new Serializer()).transform ;
+            let scale = 1.0/head_transform[0];//tools.renderer.mvMatrix[13]/head_transform[13]; // scale all model so model head is at player head 
+            let MP = mat4.create();
+            
+            mat4.identity(MP);
+            mat4.scale(MP, MP,[scale,scale,scale]);
+            mat4.multiply(this.model_pose, head_transform, MP);
+            mat4.multiply(this.model_pose, this.model_pose, tools.renderer.head_pose.transform.matrix);
+
+            console.log("head:");
+            console.log(head_transform);
+            console.log("mv:");
+            console.log(tools.renderer.mvMatrix);
+            console.log("scale:" + scale);
+            console.log(this.model_pose);
+            
+            
+            console.log("head pose:");
+            console.log(tools.renderer.head_pose);
+
+            */
+            this.head_pins = [];
+
+        }
+
         let which_hand = 0 ;
         let GRIP = 1 ;
         let TRIGGER = 0 ;
@@ -167,7 +197,7 @@ class AvatarMode extends ExecutionMode{
                 if(input_source.buttons[GRIP].pressed  && grab_hand < 0){
                     grab_hand = which_hand;
                 }
-                if(input_source.buttons[TRIGGER].pressed && pose_hand < 0){
+                if(input_source.buttons[TRIGGER].pressed && pose_hand < 0 && !this.hand_pins[which_hand]){
                     pose_hand = which_hand ;
                 }
                 /*
@@ -218,48 +248,80 @@ class AvatarMode extends ExecutionMode{
 
                 }
 
-                if(pose_hand == which_hand){
-                    let params = {};
-                    
-                    let inv = mat4.create();
-                    mat4.invert(inv,this.model_pose);
-                    let MP = mat4.create();
-                    mat4.multiply(MP,inv, input_source.grip_pose);
+                
+                let params = {};
+                
+                let inv = mat4.create();
+                mat4.invert(inv,this.model_pose);
+                let MP = mat4.create();
+                mat4.multiply(MP,inv, input_source.grip_pose);
 
 
-                    //console.log(grip_pose);
-                    let gpos = [
-                        vec4.fromValues(0.025, 0.025, -0.025, 1.0),
-                        vec4.fromValues(-0.025, 0.025, -.025, 1.0),
-                        vec4.fromValues(0, -0.025, -0.025, 1.0),
-                        vec4.fromValues(0, 0, 0.025, 1.0)
-                    ];
+                //console.log(grip_pose);
+                let gpos = [
+                    vec4.fromValues(0.025, 0.025, -0.025, 1.0),
+                    vec4.fromValues(-0.025, 0.025, -.025, 1.0),
+                    vec4.fromValues(0, -0.025, -0.025, 1.0),
+                    vec4.fromValues(0, 0, 0.025, 1.0)
+                ];
 
-                    
-                    let creating = false;
-                    if(!this.pin){
-                        this.pin = [];
-                        creating = true ;
-                    }
+                
+                let creating = false;
+                // first grab with a hand that isn't the head grab
+                if(!this.hand_pins[which_hand] && pose_hand == which_hand && this.head_pins.length > 0){
+                    this.hand_pins[which_hand] = [];
+                    creating = true ;
+                }
+                if(this.hand_pins[which_hand] || creating){
                     for(let g = 0; g < gpos.length;g++){
 
-                        params.name = "vr_pose" + g;
+                        params.name = "vr_hand_"+which_hand+"_pose_" + g;
                     
                         vec4.transformMat4(gpos[g], gpos[g], MP);// move global position into model space
                         //console.log(gpos[0] +", " + gpos[1] +", " + gpos[2]);
                         params.p = new Float32Array([gpos[g][0], gpos[g][1], gpos[g][2]]);
                         if(creating){
-                            this.pin.push(params.name); // create pin from current point
+                            this.hand_pins[which_hand].push(params.name); // create pin from current point
                             tools.API.call("createPin", params, new Serializer()); 
                         }else{
                             tools.API.call("setPinTarget", params, new Serializer()); 
                         }
                     }
-
                 }
+
                 
             }
+
             which_hand++;
+        }
+
+        let params = {};
+        let model_inv = mat4.create();
+        mat4.invert(model_inv,this.model_pose);
+        let MP = mat4.create();
+        mat4.multiply(MP,model_inv, tools.renderer.head_pose.transform.matrix);
+        let creating = this.head_pins.length == 0 && pose_hand >=0; // the first time you press a trigger, pin the head
+        let head_pos = [
+            vec4.fromValues(0.2, 0, 0, 1.0),
+            vec4.fromValues(-0.2, 0, 0, 1.0),
+            vec4.fromValues(0, 0.2, 0, 1.0),
+            vec4.fromValues(0, -0.2, 0, 1.0),
+            vec4.fromValues(0, 0, 0.2,1.0),
+            vec4.fromValues(0, 0,-0.2, 1.0)
+        ];
+        for(let g = 0; g < head_pos.length;g++){
+            params.name = "vr_head_pose_" + g;
+            vec4.transformMat4(head_pos[g], head_pos[g], MP);// move global position into model space
+            params.p = new Float32Array([head_pos[g][0], head_pos[g][1], head_pos[g][2]]);
+            //console.log(JSON.stringify(params));
+            
+            if(creating){
+                this.head_pins.push(params.name); // create pin from current point
+                tools.API.call("createPin", params, new Serializer()); 
+            }else if(this.head_pins.length>0){
+                tools.API.call("setPinTarget", params, new Serializer()); 
+            }
+            
         }
 
 
@@ -267,6 +329,7 @@ class AvatarMode extends ExecutionMode{
             this.grab_pose = null;
             this.grab_model_pose = null;
         }
+        /*
         if(pose_hand < 0 && this.pin){
             for(let name of this.pin){
                 let params = {name:name} ;
@@ -274,5 +337,7 @@ class AvatarMode extends ExecutionMode{
             }
             this.pin = null ;
         }
+        */
+        tools.API.call("applyPins", {}, new Serializer()); 
     }
 }

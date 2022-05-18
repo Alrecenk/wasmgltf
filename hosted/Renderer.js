@@ -597,14 +597,14 @@ class Renderer{
 
         // Get the XRDevice pose relative to the reference space we created
         // earlier.
-        let pose = frame.getViewerPose(tools.renderer.xr_ref_space);
+        tools.renderer.head_pose = frame.getViewerPose(tools.renderer.xr_ref_space);
 
         // Getting the pose may fail if, for example, tracking is lost. So we
         // have to check to make sure that we got a valid pose before attempting
         // to render with it. If not in this case we'll just leave the
         // framebuffer cleared, so tracking loss means the scene will simply
         // disappear.
-        if (pose) {
+        if(tools.renderer.head_pose) {
             let glLayer = frame.session.renderState.baseLayer;
 
             // If we do have a valid pose, bind the WebGL layer's framebuffer,
@@ -620,7 +620,7 @@ class Renderer{
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             
             let frame_id = 0 ;
-            for (let view of pose.views) {
+            for (let view of tools.renderer.head_pose.views) {
                 let viewport = glLayer.getViewport(view);
                 gl.viewport(viewport.x, viewport.y,
                             viewport.width, viewport.height);
@@ -663,6 +663,7 @@ class Renderer{
                 tools.renderer.xr_input.push(this_input);
             }
         }
+
         tools.renderer.has_new_xr_input = true;
     }
 }

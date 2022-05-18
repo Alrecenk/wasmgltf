@@ -1365,12 +1365,12 @@ void GLTF::deletePin(std::string name){
 void GLTF::applyPins(){
     
     for(int k=0;k<10;k++){
-        fixedSpeedIK(0.00002);
-        fixedSpeedIK(0.00002);
-        fixedSpeedIK(0.00001);
-        fixedSpeedIK(0.00001);
+        fixedSpeedIK(0.000002);
+        fixedSpeedIK(0.000002);
+        fixedSpeedIK(0.000001);
+        fixedSpeedIK(0.000001);
         vector<float> x0 = getX() ;
-        vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0, 3) ;
+        vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0, 1) ;
         setX(xf);
         float change = 0;
         for(int k=0;k<x0.size();k++){
@@ -1616,7 +1616,7 @@ void GLTF::fixedSpeedIK(float speed){
 glm::mat4 GLTF::getNodeTransform(std::string name){
     computeNodeMatrices();
     for(auto& n : nodes){
-        printf("%s\n",n.name.c_str());
+        //printf("%s\n",n.name.c_str());
         if(n.name == name){
             return n.transform;
         }
