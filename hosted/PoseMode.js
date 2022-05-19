@@ -101,7 +101,6 @@ class PoseMode extends ExecutionMode{
                 ray.name = "drag";
                 tools.API.call("setPinTarget", ray, new Serializer()); 
                 tools.API.call("applyPins", {}, new Serializer());
-
             }else if(this.rotating){
                this.tools.renderer.continueRotate(pointers[0]);
             }

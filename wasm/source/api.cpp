@@ -111,7 +111,7 @@ byte* setModel(byte* ptr){
     printf("Total model load time: %d ms\n", millis);
 
     GLTF& hand_model = meshes[HAND];
-    hand_model.setTetraModel(vec3(0,0,0), 0.025);
+    hand_model.setTetraModel(vec3(0,0,0), 0.015);
 
     return pack(ret_map);
 }
@@ -337,6 +337,76 @@ byte* deletePin(byte* ptr) {
     GLTF& model = meshes[MAIN_MODEL];
     model.deletePin(name);
     //printf("Pin '%s' deleted.\n" , name.c_str());
+    return emptyReturn();
+}
+
+
+byte* createRotationPin(byte* ptr) {
+    auto obj = Variant::deserializeObject(ptr);
+    vec3 p = obj["p"].getVec3() ;
+    string name = obj["name"].getString();
+    GLTF& model = meshes[MAIN_MODEL];
+    model.applyTransforms(); // Get current animated coordinates on CPU
+    int vertex_index = model.getClosestVertex(p);
+    vec3 global = p ;
+
+    if(vertex_index < 0){
+        model.computeNodeMatrices();
+        return emptyReturn();
+    }
+    GLTF::Vertex& vert = model.vertices[vertex_index];
+    glm::ivec4 joints = vert.joints;
+    float max_w = -1.0f ;
+    int bone = -1;
+    for(int k=0;k<4;k++){
+        float w = vert.weights[k] ;
+        if(w > max_w){
+            max_w = w ;
+            bone = vert.joints[k] ;
+        }
+    }
+    /*
+    glm::mat4 m ;
+    float* vm = obj["transform"].getFloatArray();
+    for(int k=0;k<16;k++){
+        *(((float*)&m)+k) = vm[k] ;
+    }
+    */
+
+    glm::quat initial= model.createRotationPin(name, bone, 1.0f);
+    model.applyPins();
+
+    map<string, Variant> ret_map ;
+    ret_map["initial"].makeFillableFloatArray(4);
+    float* vm = ret_map["initial"].getFloatArray();
+    vm[0] = initial.w;
+    vm[1] = initial.x;
+    vm[2] = initial.y;
+    vm[3] = initial.z;
+
+    mat4 m = glm::mat4_cast(initial);// TODO check tranpose
+    ret_map["matrix"].makeFillableFloatArray(16);
+    vm = ret_map["matrix"].getFloatArray();
+    for(int k=0;k<16;k++){
+        vm[k] = *(((float*)&m)+k) ;
+    }
+
+    return pack(ret_map);
+
+}
+
+byte* setRotationPinTarget(byte* ptr) {
+    auto obj = Variant::deserializeObject(ptr);
+    vec3 p = obj["p"].getVec3() ;
+    string name = obj["name"].getString();
+    glm::mat4 m ;
+    float* vm = obj["target"].getFloatArray();
+    for(int k=0;k<16;k++){
+        *(((float*)&m)+k) = vm[k] ;
+    }
+    glm::quat target = glm::quat_cast(m) ; // TODO check tranpose
+    GLTF& model = meshes[MAIN_MODEL];
+    model.setRotationPinTarget(name, target);
     return emptyReturn();
 }
 

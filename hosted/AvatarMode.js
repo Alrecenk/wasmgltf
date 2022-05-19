@@ -70,10 +70,20 @@ class AvatarMode extends ExecutionMode{
             }
         }
         
+
+        let mirror = mat4.create();
+        let M = mat4.create();
+        mat4.scale(mirror, mirror, vec3.fromValues(1,1,-1));
+        mat4.translate(mirror, mirror,[0,0,2]);
+
         // Draw the hands
         for(let h = 0 ; h < 2; h++){
             if(!this.hand_pins[h]){
                 tools.renderer.drawMesh("HAND", this.hand_pose[h]);
+
+                mat4.multiply(M,mirror, this.hand_pose[h]);
+                tools.renderer.drawMesh("HAND", M);
+
             }
         }
 
@@ -83,10 +93,17 @@ class AvatarMode extends ExecutionMode{
 
         //Draw the mirror
         tools.renderer.setMeshDoubleSided("MAIN", true);
+
+        mat4.multiply(M,mirror, this.model_pose);
+        tools.renderer.drawMesh("MAIN", M);
+
+/*
         let mirror = mat4.create();
         mat4.scale(mirror, this.model_pose, vec3.fromValues(1,1,-1));
         mat4.translate(mirror, mirror,[0,0,2]);
+
         tools.renderer.drawMesh("MAIN", mirror);
+*/
     }
 
 
@@ -192,6 +209,11 @@ class AvatarMode extends ExecutionMode{
         let TRIGGER = 0 ;
         let pose_hand = -1 ;
         let grab_hand = -1 ;
+
+        let params = {};
+        let model_inv = mat4.create();
+        mat4.invert(model_inv,this.model_pose);
+
         for (let input_source of xr_input) {
             if(input_source.grip_pose){
                 if(input_source.buttons[GRIP].pressed  && grab_hand < 0){
@@ -200,20 +222,6 @@ class AvatarMode extends ExecutionMode{
                 if(input_source.buttons[TRIGGER].pressed && pose_hand < 0 && !this.hand_pins[which_hand]){
                     pose_hand = which_hand ;
                 }
-                /*
-                for(let button of input_source.buttons){
-                    which_button++;
-                    if(button.pressed){
-                        //console.log("button pressed " + which_button);
-                        if(which_button == GRIP && grab_hand < 0){
-                            grab_hand = which_hand;
-                        }
-                        if(which_button == TRIGGER && pose_hand < 0){
-                            pose_hand = which_hand ;
-                        }
-                    }
-                }*/
-                
 
                 for(let axis of input_source.axes){
                     this.axis_total += axis ;
@@ -251,19 +259,18 @@ class AvatarMode extends ExecutionMode{
                 
                 let params = {};
                 
-                let inv = mat4.create();
-                mat4.invert(inv,this.model_pose);
                 let MP = mat4.create();
-                mat4.multiply(MP,inv, input_source.grip_pose);
+                mat4.multiply(MP,model_inv, input_source.grip_pose);
 
 
                 //console.log(grip_pose);
-                let gpos = [
-                    vec4.fromValues(0.025, 0.025, -0.025, 1.0),
-                    vec4.fromValues(-0.025, 0.025, -.025, 1.0),
-                    vec4.fromValues(0, -0.025, -0.025, 1.0),
-                    vec4.fromValues(0, 0, 0.025, 1.0)
-                ];
+                /*let gpos = [
+                    vec4.fromValues(0.0025, 0.0025, -0.0025, 1.0),
+                    vec4.fromValues(-0.0025, 0.0025, -.0025, 1.0),
+                    vec4.fromValues(0, -0.0025, -0.0025, 1.0),
+                    vec4.fromValues(0, 0, 0.0025, 1.0)
+                ];*/
+                let gpos = [vec4.fromValues(0, 0, 0, 1.0)];
 
                 
                 let creating = false;
@@ -281,10 +288,36 @@ class AvatarMode extends ExecutionMode{
                         //console.log(gpos[0] +", " + gpos[1] +", " + gpos[2]);
                         params.p = new Float32Array([gpos[g][0], gpos[g][1], gpos[g][2]]);
                         if(creating){
-                            this.hand_pins[which_hand].push(params.name); // create pin from current point
-                            tools.API.call("createPin", params, new Serializer()); 
+                            params.initial_matrix = tools.API.call("createRotationPin", params, new Serializer()).matrix;
+                            tools.API.call("createPin", params, new Serializer());
+                            params.initial_grip = mat4.create();
+                            params.initial_grip.set(input_source.grip_pose);
+                            this.hand_pins[which_hand].push(params); // create pin from current point    
                         }else{
+                            //console.log(this.hand_pins[which_hand][g]);
+                            let initial = this.hand_pins[which_hand][g].initial_matrix ;
+                            let initial_grip = this.hand_pins[which_hand][g].initial_grip ;
+                            let current_grip = input_source.grip_pose ;
+
+                            let MP = mat4.create();
+                            let inv = mat4.create();
+                            // get change in grip
+                            mat4.invert(inv, initial_grip);
+                            mat4.multiply(MP,current_grip, inv);
+
+                            // make both relative to model pose by wrapping it on both sides
+                            mat4.multiply(MP,model_inv,MP);
+                            mat4.multiply(MP,MP,this.model_pose);
+
+                            mat4.multiply(MP,MP,initial);
+
+
+                            params.target = MP;
+                            tools.API.call("setRotationPinTarget", params, new Serializer()); 
+
                             tools.API.call("setPinTarget", params, new Serializer()); 
+
+                            
                         }
                     }
                 }
@@ -295,20 +328,20 @@ class AvatarMode extends ExecutionMode{
             which_hand++;
         }
 
-        let params = {};
-        let model_inv = mat4.create();
-        mat4.invert(model_inv,this.model_pose);
+        
         let MP = mat4.create();
         mat4.multiply(MP,model_inv, tools.renderer.head_pose.transform.matrix);
         let creating = this.head_pins.length == 0 && pose_hand >=0; // the first time you press a trigger, pin the head
-        let head_pos = [
-            vec4.fromValues(0.2, 0, 0, 1.0),
-            vec4.fromValues(-0.2, 0, 0, 1.0),
-            vec4.fromValues(0, 0.2, 0, 1.0),
-            vec4.fromValues(0, -0.2, 0, 1.0),
-            vec4.fromValues(0, 0, 0.2,1.0),
-            vec4.fromValues(0, 0,-0.2, 1.0)
-        ];
+        
+        /*let head_pos = [
+            vec4.fromValues(0.02, 0, 0, 1.0),
+            vec4.fromValues(-0.02, 0, 0, 1.0),
+            vec4.fromValues(0, 0.02, 0, 1.0),
+            vec4.fromValues(0, -0.02, 0, 1.0),
+            vec4.fromValues(0, 0, 0.02,1.0),
+            vec4.fromValues(0, 0,-0.02, 1.0)
+        ];*/
+        let head_pos = [vec4.fromValues(0, 0, 0, 1.0)];
         for(let g = 0; g < head_pos.length;g++){
             params.name = "vr_head_pose_" + g;
             vec4.transformMat4(head_pos[g], head_pos[g], MP);// move global position into model space
@@ -316,9 +349,41 @@ class AvatarMode extends ExecutionMode{
             //console.log(JSON.stringify(params));
             
             if(creating){
-                this.head_pins.push(params.name); // create pin from current point
+                params.initial_matrix = tools.API.call("createRotationPin", params, new Serializer()).matrix;
                 tools.API.call("createPin", params, new Serializer()); 
+
+                params.initial_pose = mat4.create();
+                params.initial_pose.set(tools.renderer.head_pose.transform.matrix);
+                this.head_pins.push(params); // create pin from current point
             }else if(this.head_pins.length>0){
+                
+                let initial = this.head_pins[g].initial_matrix ;
+                let initial_pose = this.head_pins[g].initial_pose ;
+                let current_pose = tools.renderer.head_pose.transform.matrix ;
+                //console.log("i, ip, cp, params");
+                //console.log(initial);
+                //console.log(initial_pose);
+                //console.log(current_pose);
+                let MP = mat4.create();
+                let inv = mat4.create();
+                
+                // get change in grip
+                mat4.invert(inv, initial_pose);
+                mat4.multiply(MP,current_pose, inv);
+
+                // make both relative to model pose by wrapping it on both sides
+                mat4.multiply(MP,model_inv,MP);
+                mat4.multiply(MP,MP,this.model_pose);
+
+                mat4.multiply(MP,MP,initial);
+
+                params.target = MP;
+                //console.log(params);
+                tools.API.call("setRotationPinTarget", params, new Serializer()); 
+                
+
+
+
                 tools.API.call("setPinTarget", params, new Serializer()); 
             }
             
