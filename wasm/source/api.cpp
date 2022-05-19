@@ -111,7 +111,7 @@ byte* setModel(byte* ptr){
     printf("Total model load time: %d ms\n", millis);
 
     GLTF& hand_model = meshes[HAND];
-    hand_model.setTetraModel(vec3(0,0,0), 0.025);
+    hand_model.setTetraModel(vec3(0,0,0), 0.015);
 
     return pack(ret_map);
 }
@@ -384,7 +384,7 @@ byte* createRotationPin(byte* ptr) {
     vm[2] = initial.y;
     vm[3] = initial.z;
 
-    mat4 m = glm::mat4_cast(initial);
+    mat4 m = glm::mat4_cast(initial);// TODO check tranpose
     ret_map["matrix"].makeFillableFloatArray(16);
     vm = ret_map["matrix"].getFloatArray();
     for(int k=0;k<16;k++){
@@ -404,7 +404,7 @@ byte* setRotationPinTarget(byte* ptr) {
     for(int k=0;k<16;k++){
         *(((float*)&m)+k) = vm[k] ;
     }
-    glm::quat target = glm::quat_cast(m) ;
+    glm::quat target = glm::quat_cast(m) ; // TODO check tranpose
     GLTF& model = meshes[MAIN_MODEL];
     model.setRotationPinTarget(name, target);
     return emptyReturn();

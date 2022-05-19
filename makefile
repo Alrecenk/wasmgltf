@@ -34,6 +34,7 @@ EXPORTED_FUNCTIONS =[\
 	'_getNodeTransform',\
 	'_applyPins',\
 	'_createRotationPin',\
+	'_setRotationPinTarget',\
 	'_free']
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp

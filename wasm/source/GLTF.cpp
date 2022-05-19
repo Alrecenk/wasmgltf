@@ -1367,6 +1367,7 @@ void GLTF::deletePin(std::string name){
 glm::quat GLTF::createRotationPin(std::string name, int bone,float weight){
     glm::quat target = nodes[bone].rotation ;
     int node_id = bone;
+    node_id = nodes[node_id].parent;
     while(node_id != -1){
         target = nodes[node_id].rotation * target;
         node_id = nodes[node_id].parent;
@@ -1391,13 +1392,14 @@ void GLTF::deleteRotationPin(std::string name){
 // run inverse kinematics on model to bones to attemp to satisfy pin constraints
 void GLTF::applyPins(){
     
+    
     for(int k=0;k<10;k++){
         fixedSpeedIK(0.000002);
         fixedSpeedIK(0.000002);
         fixedSpeedIK(0.000001);
         fixedSpeedIK(0.000001);
         vector<float> x0 = getX() ;
-        vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0, 1) ;
+        vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0, 2) ;
         setX(xf);
         float change = 0;
         for(int k=0;k<x0.size();k++){
@@ -1413,11 +1415,14 @@ void GLTF::applyPins(){
             // some fixed steps help the gradient descent get unstuck
         }
 
-        fixedSpeedRotationIK(0.1);
+        fixedSpeedRotationIK(0.2);
     }
+    
 
     //vector<float> xf = OptimizationProblem::minimizeByLBFGS(x0, 2, 2, 50, 0.00001, 0.000001);
     //setX(xf);
+
+    //fixedSpeedRotationIK(0.5);
 
     computeNodeMatrices();
 }
@@ -1647,18 +1652,34 @@ void GLTF::fixedSpeedRotationIK(float speed){
     for(const auto& [name, pin] : rotation_pins){
         int node_id = pin.bone;
         glm::quat current = nodes[node_id].rotation ;
+        node_id = nodes[node_id].parent;
         while(node_id != -1){
             current = nodes[node_id].rotation * current;
             node_id = nodes[node_id].parent;
         }
         current = glm::quat_cast(transform) * current ; 
-        printf("current: %f, %f, %f, %f\n", current.w, current.x, current.y, current.z);
-        printf("pin.target: %f, %f, %f, %f\n", pin.target.w, pin.target.x, pin.target.y, pin.target.z);
-        glm::quat local_target = nodes[pin.bone].rotation * glm::inverse(current) *pin.target  ;
+        glm::quat local_target = nodes[pin.bone].rotation * glm::inverse(current) * pin.target  ;
         nodes[pin.bone].rotation = slerp(nodes[pin.bone].rotation, local_target, speed);
-        printf("bone local: %f, %f, %f, %f\n", nodes[pin.bone].rotation.w, nodes[pin.bone].rotation.x, nodes[pin.bone].rotation.y, nodes[pin.bone].rotation.z);
-        printf("target local: %f, %f, %f, %f\n", local_target.w, local_target.x, local_target.y, local_target.z);
-        //nodes[pin.bone].rotation =local_target ;
+        
+        //printf("current: %f, %f, %f, %f\n", current.w, current.x, current.y, current.z);
+        
+        
+        //printf("bone local: %f, %f, %f, %f\n", nodes[pin.bone].rotation.w, nodes[pin.bone].rotation.x, nodes[pin.bone].rotation.y, nodes[pin.bone].rotation.z);
+        //printf("target local: %f, %f, %f, %f\n", local_target.w, local_target.x, local_target.y, local_target.z);
+        
+
+        /*
+        node_id = pin.bone;
+        glm::quat result = local_target;
+        node_id = nodes[node_id].parent;
+        while(node_id != -1){
+            result = nodes[node_id].rotation * result;
+            node_id = nodes[node_id].parent;
+        }
+        result = glm::quat_cast(transform) * result ;
+        printf("pin.target: %f, %f, %f, %f\n", pin.target.w, pin.target.x, pin.target.y, pin.target.z);
+        printf("result    : %f, %f, %f, %f\n", result.w, result.x, result.y, result.z);
+        */
     }
 }
 
