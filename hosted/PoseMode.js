@@ -88,6 +88,8 @@ class PoseMode extends ExecutionMode{
             let ray = tools.renderer.getRay([this.mouse_down_x,this.mouse_down_y]);
             ray.name = "drag";
             tools.API.call("createPin", ray, new Serializer()); 
+            let p = tools.API.call("rayTrace", ray, new Serializer()); 
+            console.log(tools.API.call("createRotationPin", {p:p.x, name:"test_rot"}, new Serializer())); //TODO remove
             this.dragging = true;
         }
     }
@@ -101,7 +103,6 @@ class PoseMode extends ExecutionMode{
                 ray.name = "drag";
                 tools.API.call("setPinTarget", ray, new Serializer()); 
                 tools.API.call("applyPins", {}, new Serializer());
-
             }else if(this.rotating){
                this.tools.renderer.continueRotate(pointers[0]);
             }

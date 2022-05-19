@@ -103,6 +103,12 @@ class GLTF : public OptimizationProblem{
             float weight = 1.0f ;
         };
 
+        struct RotationPin{
+            std::string name = "";
+            int bone;
+            glm::quat target;
+            float weight = 1.0f ;
+        };
 
         Variant json;
         Variant bin;
@@ -113,6 +119,7 @@ class GLTF : public OptimizationProblem{
         std::vector<Animation> animations;
         
         std::map<std::string, Pin> pins ; // for inverse kinematics
+        std::map<std::string, RotationPin> rotation_pins ; // for inverse kinematics
 
         std::vector<Vertex> vertices ;
         std::vector<Triangle> triangles ; 
@@ -216,6 +223,16 @@ class GLTF : public OptimizationProblem{
         // delete pin
         void deletePin(std::string name);
 
+        // Create an IK pin to rotate a bone to global orientation
+        // Returns the starting orientation when the pin was created
+        glm::quat createRotationPin(std::string name, int bone,float weight);
+
+        // Set the target for a given rotation pin
+        void setRotationPinTarget(std::string name, glm::quat target);
+
+        // delete rotation pin
+        void deleteRotationPin(std::string name);
+
         // run inverse kinematics on model to bones to attemp to satisfy pin constraints
         void applyPins();
 
@@ -236,6 +253,8 @@ class GLTF : public OptimizationProblem{
         std::vector<float> gradient(std::vector<float> x) override;
 
         void fixedSpeedIK(float speed);
+
+        void fixedSpeedRotationIK(float speed);
 
         glm::mat4 getNodeTransform(std::string name);
 
