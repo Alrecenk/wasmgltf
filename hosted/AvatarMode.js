@@ -379,12 +379,7 @@ class AvatarMode extends ExecutionMode{
                 mat4.multiply(MP,MP,initial);
 
                 params.target = MP;
-                //console.log(params);
                 tools.API.call("setRotationPinTarget", params, new Serializer()); 
-                
-
-
-
                 tools.API.call("setPinTarget", params, new Serializer()); 
             }
             

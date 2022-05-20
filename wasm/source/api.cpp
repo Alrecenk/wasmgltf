@@ -365,16 +365,8 @@ byte* createRotationPin(byte* ptr) {
             bone = vert.joints[k] ;
         }
     }
-    /*
-    glm::mat4 m ;
-    float* vm = obj["transform"].getFloatArray();
-    for(int k=0;k<16;k++){
-        *(((float*)&m)+k) = vm[k] ;
-    }
-    */
 
     glm::quat initial= model.createRotationPin(name, bone, 1.0f);
-    model.applyPins();
 
     map<string, Variant> ret_map ;
     ret_map["initial"].makeFillableFloatArray(4);

@@ -1373,6 +1373,7 @@ glm::quat GLTF::createRotationPin(std::string name, int bone,float weight){
         node_id = nodes[node_id].parent;
     }
     target = glm::quat_cast(transform) * target ; 
+    target = glm::normalize(target); // scale in transform may leak into quat
     rotation_pins[name] = {name, bone, target, weight};
     return target ;
 }
@@ -1634,6 +1635,7 @@ void GLTF::fixedSpeedRotationIK(float speed){
             node_id = nodes[node_id].parent;
         }
         current = glm::quat_cast(transform) * current ; 
+        current = glm::normalize(current); // scale in transform may leak into quat
         glm::quat local_target = nodes[pin.bone].rotation * glm::inverse(current) * pin.target  ;
         nodes[pin.bone].rotation = slerp(nodes[pin.bone].rotation, local_target, speed);
         
