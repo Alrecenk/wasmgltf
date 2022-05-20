@@ -1390,39 +1390,27 @@ void GLTF::deleteRotationPin(std::string name){
 }
 
 // run inverse kinematics on model to bones to attemp to satisfy pin constraints
-void GLTF::applyPins(){
-    
-    
-    for(int k=0;k<10;k++){
-        fixedSpeedIK(0.000002);
-        fixedSpeedIK(0.000002);
-        fixedSpeedIK(0.000001);
-        fixedSpeedIK(0.000001);
-        vector<float> x0 = getX() ;
-        vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0, 2) ;
-        setX(xf);
-        float change = 0;
-        for(int k=0;k<x0.size();k++){
-            change += abs(x0[k]-xf[k]);
-        }
-        float err = error(xf);
-        //printf("error: %f change %f\n", err, change);
-        if(change < 0.01 && err > 0.000001){
-            fixedSpeedIK(0.0001);
-            fixedSpeedIK(0.0001);
-            fixedSpeedIK(0.00004);
-            fixedSpeedIK(0.00004);
-            // some fixed steps help the gradient descent get unstuck
-        }
-
-        fixedSpeedRotationIK(0.2);
+void GLTF::applyPins(){    
+    vector<float> x0 = getX() ;
+    // gradient descent handles bone stiffness best so do it first
+    vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0, 5,50) ; 
+    setX(xf);
+    for(int node_id=0; node_id<nodes.size(); node_id++){   
+            Node& bone = nodes[node_id];
+            bone.rotation = glm::normalize(bone.rotation);
     }
-    
-
-    //vector<float> xf = OptimizationProblem::minimizeByLBFGS(x0, 2, 2, 50, 0.00001, 0.000001);
-    //setX(xf);
-
-    //fixedSpeedRotationIK(0.5);
+    fixedSpeedIK(0.000001); // Fixed speed IK helps unstick things
+    fixedSpeedRotationIK(0.5);
+    x0 = getX() ;
+    xf = OptimizationProblem::minimizeByLBFGS(x0, 3, 3, 50, 0, 0); // L-BFGS converges fast but doesn't obey bone stiffness
+    setX(xf);
+    for(int node_id=0; node_id<nodes.size(); node_id++){   
+            Node& bone = nodes[node_id];
+            bone.rotation = glm::normalize(bone.rotation);
+    }
+    fixedSpeedIK(0.000001);
+    fixedSpeedRotationIK(0.5);
+ 
 
     computeNodeMatrices();
 }
@@ -1453,7 +1441,6 @@ void GLTF::setX(std::vector<float> x){
         j++;
         node.rotation.z = x[j]/node.stiffness;
         j++;
-        node.rotation = glm::normalize(node.rotation);
     }
     //computeNodeMatrices();
 }
@@ -1484,6 +1471,14 @@ double GLTF::error(std::vector<float> x){
         vec3 diff = (actual - pin.target) ;
         error += pin.weight * glm::dot(diff, diff);
     }
+
+    // enforce normalized quaternions with a barrier penalty
+    for(int node_id=0; node_id<nodes.size(); node_id++){   
+            Node& bone = nodes[node_id];
+            double d2 = glm::dot(bone.rotation, bone.rotation);
+            error += barrier_strength*(1-d2)*(1-d2);
+    }
+    
     return error ;
 }
 
@@ -1537,7 +1532,6 @@ glm::vec3 GLTF::dedx(const glm::vec3 x, const glm::quat rot, const glm::vec3 ded
 
 // Returns the gradient of error about a given input
 std::vector<float> GLTF::gradient(std::vector<float> x){
-    //std::vector<float> numerical = numericalGradient(x,0.0001);
     
     std::vector<float> gradient ;
     gradient.resize(x.size());
@@ -1571,23 +1565,8 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
         //printf("point: %f, %f, %f\n", actual.x, actual.y, actual.z);
         dvec3 diff = (dvec3(actual) - dvec3(pin.target)) ;
         error = pin.weight * glm::dot(diff, diff);
-
-        if(isnan(error)){
-            printf("Error is nan! Something has gone very wrong in IK.\n") ;
-            printf("Xi :\n");
-            for(int k=0;k<x.size();k++){
-                printf("%f, ", x[k]);
-            }
-            printf("\n");
-            printf("point: %f, %f, %f\n", actual.x, actual.y, actual.z);
-            printf("target: %f, %f, %f\n", pin.target.x, pin.target.y, pin.target.z);
-            return gradient ;
-        }
         vec3 dedx =  transform * dvec4(diff,0.0) * 2.0f * pin.weight ;
 
-        //printf("Error: %f \n", error);
-        //printf("dedx root: %f, %f, %f\n", dedx.x, dedx.y, dedx.z);
-        //printf("Bone depth: %d\n", (int)bones.size());
         // back propogate gradient
         for(int bi = bones.size()-1; bi>= 0; bi--){
             Node& bone = nodes[bones[bi]];
@@ -1606,21 +1585,18 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
         }
         
     }
-    /*
-    printf("IK gradient:\n");
-    for(int k=0;k<gradient.size();k++){
-        float s = gradient[k]/numerical[k] ;
-        if(abs(gradient[k]) > 0.0001 ||  abs(numerical[k]) > 0.0001){
 
-            printf("%d: %f = %f  * %f, ", k, gradient[k], numerical[k], s);
-        }
-        if(k%4 == 3){
-            printf("\n");
-        }
+    // enforce nromalized quaternions with a barrier penalty
+    for(int node_id=0; node_id<nodes.size(); node_id++){   
+            Node& bone = nodes[node_id];
+            double d2 = glm::dot(bone.rotation, bone.rotation);
+            double dqdb = 4 * (d2-1);
+            gradient[node_id*4] += barrier_strength*bone.rotation.w * dqdb ;
+            gradient[node_id*4+1] += barrier_strength*bone.rotation.x * dqdb ;
+            gradient[node_id*4+2] += barrier_strength*bone.rotation.y * dqdb ;
+            gradient[node_id*4+3] += barrier_strength*bone.rotation.z * dqdb ;
+            
     }
-    printf("\n");
-    */
-    //return numerical ;
     return gradient ;
 }
 

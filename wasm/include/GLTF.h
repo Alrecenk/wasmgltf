@@ -120,6 +120,7 @@ class GLTF : public OptimizationProblem{
         
         std::map<std::string, Pin> pins ; // for inverse kinematics
         std::map<std::string, RotationPin> rotation_pins ; // for inverse kinematics
+        double barrier_strength = 0.1;
 
         std::vector<Vertex> vertices ;
         std::vector<Triangle> triangles ; 
