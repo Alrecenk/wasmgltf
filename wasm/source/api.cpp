@@ -292,9 +292,9 @@ byte* createPin(byte* ptr) {
 
     double error = model.error(model.getX());
     printf("Error: %f\n", error);
-
-    printf("Pin '%s' created for %s.\n" , name.c_str(), model.nodes[bone].name.c_str());
     */
+    printf("Pin '%s' created for %s.\n" , name.c_str(), model.nodes[bone].name.c_str());
+    
 
     return emptyReturn();
 
