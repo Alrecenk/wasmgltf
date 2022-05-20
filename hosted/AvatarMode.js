@@ -252,7 +252,7 @@ class AvatarMode extends ExecutionMode{
                     let scale = Math.pow(1.05, (this.axis_total - this.grab_axis_total)*0.3);
                     mat4.scale(MP, MP,[scale,scale,scale]);
                     mat4.multiply(this.model_pose, MP, this.grab_model_pose);
-                    
+                    mat4.invert(model_inv,this.model_pose);
 
                 }
 
@@ -275,7 +275,7 @@ class AvatarMode extends ExecutionMode{
                 
                 let creating = false;
                 // first grab with a hand that isn't the head grab
-                if(!this.hand_pins[which_hand] && pose_hand == which_hand && this.head_pins.length > 0){
+                if(!this.hand_pins[which_hand] && pose_hand == which_hand && this.head_pins.length > 0 && !this.head_posing){
                     this.hand_pins[which_hand] = [];
                     creating = true ;
                 }
@@ -355,6 +355,7 @@ class AvatarMode extends ExecutionMode{
                 params.initial_pose = mat4.create();
                 params.initial_pose.set(tools.renderer.head_pose.transform.matrix);
                 this.head_pins.push(params); // create pin from current point
+                this.head_posing = true;
             }else if(this.head_pins.length>0){
                 
                 let initial = this.head_pins[g].initial_matrix ;
@@ -394,15 +395,11 @@ class AvatarMode extends ExecutionMode{
             this.grab_pose = null;
             this.grab_model_pose = null;
         }
-        /*
-        if(pose_hand < 0 && this.pin){
-            for(let name of this.pin){
-                let params = {name:name} ;
-                tools.API.call("deletePin", params, new Serializer()); 
-            }
-            this.pin = null ;
+        
+        if(pose_hand < 0 && this.head_posing){
+            this.head_posing = false;
         }
-        */
+        
         tools.API.call("applyPins", {}, new Serializer()); 
     }
 }
