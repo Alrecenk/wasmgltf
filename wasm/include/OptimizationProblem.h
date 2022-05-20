@@ -35,7 +35,7 @@ class OptimizationProblem {
     //starting from w0 searches for a weight vector using gradient descent
 	//and Wolfe condition line-search until the gradient magnitude is below tolerance
 	//or a maximum number of iterations is reached
-    std::vector<float> minimumByGradientDescent(const std::vector<float> x0, double tolerance, int maxiter);
+    std::vector<float> minimumByGradientDescent(const std::vector<float> x0, double tolerance, int maxiter, int stepiter);
 
     //Performs a binary search to satisfy the Wolfe conditions
 	//returns alpha where next x = x0 + alpha*d 

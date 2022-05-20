@@ -103,14 +103,14 @@ std::vector<float> OptimizationProblem::minimizeByLBFGS(const std::vector<float>
 
 }
 
-std::vector<float> OptimizationProblem::minimumByGradientDescent(const std::vector<float> x0, double tolerance, int maxiter){
+std::vector<float> OptimizationProblem::minimumByGradientDescent(const std::vector<float> x0, double tolerance, int maxiter, int stepiter){
     vector<float> x = x0 ;
     vector<float> gradient = this->gradient(x0) ;
     int iteration = 0 ;
     while(dot(gradient,gradient) > tolerance*tolerance && iteration < maxiter){
         iteration++ ;
         //calculate step-size in direction of negative gradient
-        double alpha = stepSize(x, scale(gradient,-1), 1, 50, 0.1, 0.9) ;
+        double alpha = stepSize(x, scale(gradient,-1), 1, stepiter, 0.1, 0.9) ;
         x = add( x, scale(gradient, -alpha)) ; // apply step
         gradient = this->gradient(x) ; // get new gradient
     }
@@ -128,7 +128,7 @@ double OptimizationProblem::stepSize(const std::vector<float> x0, const std::vec
     for (int iter = 1; iter <= maxit; iter++){
         vector<float> xp = add(x0, scale(d, alpha)); // get the point at this alpha
         double erroralpha = this->error(xp); //get the error at that point
-        if (erroralpha >= fx0 + alpha * c1 * gx0)	{ // if error is not sufficiently reduced
+        if (isnan(erroralpha) || erroralpha >= fx0 + alpha * c1 * gx0)	{ // if error is not sufficiently reduced
             alphaR = alpha;//move halfway between current alpha and lower alpha
             alpha = (alphaL + alphaR)/2.0;
         }else{//if error is sufficiently decreased 
