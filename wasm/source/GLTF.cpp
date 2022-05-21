@@ -1040,18 +1040,19 @@ vec3 GLTF::getNormal(Triangle t){
 
 void GLTF::setTetraModel(glm::vec3 center, float size){
 
+    //TODO color_mult seems tor be g,b,alpha,r for some reason, what's up with that
     Vertex A, B, C, D ;
     A.position = vec3(center[0] + size ,center[1] + size, center[2]-size);
     A.weights = vec4(1,0,0,0);
-    A.color_mult = vec4(0,0,0,1) ;
+    A.color_mult = vec4(0,0,1,0) ; // black
     B.position = vec3(center[0] - size,center[1] + size,center[2]-size);
-    B.color_mult = vec4(1,0,0,1) ;
+    B.color_mult = vec4(1,0,1,0) ; // green
     B.weights = vec4(1,0,0,0);
     C.position = vec3(center[0], center[1] - size, center[2]-size);
-    C.color_mult = vec4(0,1,0,1) ;
+    C.color_mult = vec4(0,1,1,0) ; // blue
     C.weights = vec4(1,0,0,0);
     D.position = vec3(center[0], center[1], center[2] + size);
-    D.color_mult = vec4(0,0,1,1) ;
+    D.color_mult = vec4(0,0,1,1) ; // red
     D.weights = vec4(1,0,0,0);
 
     vector<Vertex> v ;
