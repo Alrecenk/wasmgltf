@@ -899,6 +899,26 @@ Variant Variant::parseJSONArray(const std::string& json){
     return Variant(array);
 }
 
+// trim from start (in place)
+static inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }));
+}
+
+// trim from end (in place)
+static inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+
+// trim from both ends (in place)
+static inline void trim(std::string &s) {
+    ltrim(s);
+    rtrim(s);
+}
+
 std::pair<Variant,int> Variant::parseJSONValue(const std::string& json, int value_start){
     Variant var ;
     int c ;
@@ -945,9 +965,10 @@ std::pair<Variant,int> Variant::parseJSONValue(const std::string& json, int valu
         }else if(json[c] == ',' || json[c] == ']' || json[c] == '}'){ // got to , not inside nested structure
             if(!got_value && value_start != c){ // must be a number if nothing else
                 string value = json.substr(value_start, c - value_start);
-                if(value == "true"){
+                trim(value);
+                if(value == "true"){ // TODO proper trimming!
                     var = Variant((int)1);
-                }else if(value == "false"){
+                }else if(value == "false" || value == ""){
                     var = Variant((int)0);
                 }else if(value.find('.') == string::npos){
                     int i = std::stoi(value);

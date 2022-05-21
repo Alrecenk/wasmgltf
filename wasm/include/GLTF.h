@@ -26,7 +26,7 @@ class GLTF : public OptimizationProblem{
             glm::vec3 position = {0, 0, 0}; // position in global space
             glm::vec3 normal = {0, 0, 0}; // normal in global space
             glm::vec2 tex_coord = {0, 0};
-            glm::vec3 color_mult = {1.0f, 1.0f, 1.0f};
+            glm::vec4 color_mult = {1.0f, 1.0f, 1.0f, 1.0f};
 
             glm::ivec4 joints = {0,0,0,0}; // Nodes this vertex is skinned to if any
             glm::vec4 weights = {0,0,0,0}; // weights for each skinning node

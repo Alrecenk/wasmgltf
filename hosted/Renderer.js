@@ -353,7 +353,7 @@ class Renderer{
         if(buffer_data.color){
             gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[id].color );
             gl.bufferData(gl.ARRAY_BUFFER, buffer_data.color, gl.STATIC_DRAW);
-            this.buffers[id].color.itemSize = 3;
+            this.buffers[id].color.itemSize = 4;
             this.buffers[id].color.numItems = num_vertices;
         }
 
