@@ -966,7 +966,6 @@ std::pair<Variant,int> Variant::parseJSONValue(const std::string& json, int valu
             if(!got_value && value_start != c){ // must be a number if nothing else
                 string value = json.substr(value_start, c - value_start);
                 trim(value);
-                printf("number: '%s'\n", value.c_str());
                 if(value == "true"){ // TODO proper trimming!
                     var = Variant((int)1);
                 }else if(value == "false" || value == ""){
