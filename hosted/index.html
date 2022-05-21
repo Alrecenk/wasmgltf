@@ -39,7 +39,7 @@ body {
     // A simple fragment shader with a single point light
     precision mediump float;
 
-    in vec3 v_color;
+    in vec4 v_color;
 	in vec3 v_position;
 	in vec3 v_normal;
     in vec2 v_texcoord;
@@ -61,29 +61,25 @@ body {
 		float direct = lightFrom(u_light_point) ;
 		float indirect = 1.;
 		float l = 0.5*indirect + 0.5 * direct ; // Add some ambient light
+        frag_color = vec4(l *v_color.r ,l * v_color.g,l*v_color.b , v_color.a) ;
         if(u_has_texture > 0){
             vec4 t_color = texture(u_texture, v_texcoord);
-            if(t_color.a > u_alpha_cutoff){
-                frag_color = vec4(t_color.r*l *v_color.r ,t_color.g*l * v_color.g,t_color.b*l*v_color.b , 1.0);
-            }else{
-                discard;
-            }
-            //frag_color = vec4(1.0,0.0,0.0,1.0);
-            //frag_color = texture(u_texture, v_texcoord);
-
-
-        }else{
-            //frag_color = vec4(1.0,0.0,0.0,1.0);
-		    frag_color = vec4(v_color*l ,1.0);	// Scale the color by the lighting;
+            frag_color.r *= t_color.r ;
+            frag_color.g *= t_color.g ;
+            frag_color.b *= t_color.b ;
+            frag_color.a *= t_color.a ;
         }
-		
+
+        if(frag_color.a < u_alpha_cutoff){
+            discard ;
+        }		
     }
 </script>
 
 <script id="shader-vs" type="x-shader/x-vertex">#version 300 es
     // A Very simple passthrough vertex shader
 	in vec3 aVertexPosition;
-    in vec3 aVertexColor;
+    in vec4 aVertexColor;
 	in vec3 aNormal;
     in vec2 aTexcoord;
     in vec4 aJoints;
@@ -93,7 +89,7 @@ body {
     uniform mat4 uPMatrix;
     uniform sampler2D bones_texture;
 
-    out vec3 v_color;
+    out vec4 v_color;
 	out vec3 v_position;
 	out vec3 v_normal;
     out vec2 v_texcoord;
@@ -133,7 +129,7 @@ body {
         v_color = aVertexColor;
         if(length(v_position) < 0.01f){
             v_position = aVertexPosition;
-            v_color = vec3(1.0,0.0,0.0);            
+            v_color = vec4(1.0,0.0,0.0, 1.0);            
         }
 
 		//v_position = aVertexPosition; 

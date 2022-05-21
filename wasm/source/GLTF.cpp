@@ -298,7 +298,7 @@ Variant GLTF::getChangedBuffer(int selected_material){
     }    
 
     if(this->model_changed){
-        vector<vec3> color ;
+        vector<vec4> color ;
         vector<vec2> tex_coord;
         vector<vec4> weights;
         vector<ivec4> joints;
@@ -382,6 +382,7 @@ void GLTF::setModel(const byte* data, int data_length){
         if(first_chunk_type == 0x4E4F534A){
 
             string header = string((char *) (data + 20), JSON_length);
+            //printf("JSON: \n %s\n", header.c_str());
             json = Variant::parseJSON(header);
             //json.printFormatted();
             int bin_chunk_start = 20 + JSON_length ;
@@ -660,7 +661,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
     }
     //printf("Primitive material: %d\n", material);
     
-    vec3 mat_color = vec3(1,1,1);
+    vec4 mat_color = vec4(1,1,1,1);
     
     Variant iv = json["materials"][material]["pbrMetallicRoughness"]["baseColorTexture"]["index"] ;
     //int image = -1;
@@ -676,11 +677,10 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
             ic = json["materials"][material]["pbrMetallicRoughness"]["baseColorFactor"];
         }
         if(ic.defined()){
-            mat_color = vec3(ic[0].getNumberAsFloat(), ic[1].getNumberAsFloat(), ic[2].getNumberAsFloat());
+            mat_color = vec4(ic[0].getNumberAsFloat(), ic[1].getNumberAsFloat(), ic[2].getNumberAsFloat(),1.0);
         }
-        
     }
-
+    
     for(int k=0;k<num_vertices;k++){
         
         //printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
@@ -1043,15 +1043,15 @@ void GLTF::setTetraModel(glm::vec3 center, float size){
     Vertex A, B, C, D ;
     A.position = vec3(center[0] + size ,center[1] + size, center[2]-size);
     A.weights = vec4(1,0,0,0);
-    A.color_mult = vec3(0,0,0) ;
+    A.color_mult = vec4(0,0,0,1) ;
     B.position = vec3(center[0] - size,center[1] + size,center[2]-size);
-    B.color_mult = vec3(1,0,0) ;
+    B.color_mult = vec4(1,0,0,1) ;
     B.weights = vec4(1,0,0,0);
     C.position = vec3(center[0], center[1] - size, center[2]-size);
-    C.color_mult = vec3(0,1,0) ;
+    C.color_mult = vec4(0,1,0,1) ;
     C.weights = vec4(1,0,0,0);
     D.position = vec3(center[0], center[1], center[2] + size);
-    D.color_mult = vec3(0,0,1) ;
+    D.color_mult = vec4(0,0,1,1) ;
     D.weights = vec4(1,0,0,0);
 
     vector<Vertex> v ;
