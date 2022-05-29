@@ -1,8 +1,10 @@
 #include "Variant.h"
 #include <cstring> // for memcpy
+#include <algorithm> // for find_if
 using std::string;
 using std::map;
 using std::vector;
+
 
 
 Variant::Variant() {
